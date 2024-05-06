@@ -1,0 +1,727 @@
+<meta charset="utf-8">
+
+             **Huffman and Prefix Codes**
+
+Foreword
+========
+
+Huffman and prefix codes are not what you could consider like bleeding edge technology, after all
+David Huffman's paper dates back from 1952, and, although advances were made in the following decades,
+pretty much nothing new has popped up in the past twenty years. So, why the need for this page?
+Simply because information is scattered all over the Internet and I would have liked having such
+an all-in-one-location reference when I started learning about Huffman and prefix coding.
+
+Crash Course in Entropy Coding
+==============================
+
+Data is made of symbols and each symbol must be coded using some system so that data can be transmitted.
+The most common way of storing data nowadays is 8-bit bytes, which allows for 256 different symbols.
+However, symbols are not equally likely, some appear more frequently than others. This page for example
+is written in English: the most likely symbols are letters, lowercase ones being more frequent than
+uppercase ones and among letters [some are more frequent than others](https://www3.nd.edu/~busiforc/handouts/cryptography/letterfrequencies.html).
+
+It's easy to understand that this coding is inefficient: we should give more frequent symbols shorter
+codes and, in compensation, less frequent symbols would receive longer codes. Shannon's entropy law states
+that each symbol can optimally be encoded on <i>-log₂ p(s)</i> bits where <i>p(s)</i> is the symbol's
+probability.
+
+There are many codings that try to get approach Shannon's entropy, [arithmetic (or range) coding](https://en.wikipedia.org/wiki/Arithmetic_coding)
+being the one that is closest to that theoretical optimum. [ANS (Asymmetric Numeral Systems)](https://en.wikipedia.org/wiki/Asymmetric_numeral_systems)
+is slightly less efficient while being much faster. Huffman coding, while not as efficient as the
+other two, is optimal in its own kind of way.
+
+Prefix Coding
+=============
+
+But before we get to Huffman, let's describe what prefix coding is. In prefix coding, codes have
+(potentially) different lengths and are such that no code starts by any other shorter code (i.e.
+no code is the prefix of another code). To give you an example, let's say that `010` is a
+3-bit code, then no other code can begin by those same three bits: longer codes will have to begin
+by something else (`011`, `100`, ...).
+
+Prefix codes can be represented as a tree where each node has two children; symbols are located at
+the leaves of the tree. The path from the tree's root to a leaf is unique and can be described by
+a succession of left-or-right branches: that's the symbol's code. The fact that symbols are leaves
+is what guarantees the prefix property of the codes.
+
+The following figure shows a prefix-code tree with the path to the 'B' symbol highlighted in green.
+The corresponding prefix code is thus '10100'.
+
+![A Prefix-Code Tree](img/huffman-tree-highlighted.png)
+
+!!! Note
+    The usual binary encoding is a prefix code, it's just that all paths have the same length
+
+Huffman's Algorithm
+===================
+
+Huffman's algorithm is a way to generate prefix codes in an **optimal** manner: the codes will be
+as close as possible to Shannon's entropy as whole-bit codes can be. To beat Huffman codes you need
+to be able to encode with sub-bit precision (which both arithmetic coding and ANS achieve).
+
+!!! Warning
+    I will henceforth use the term <i>weight</i> instead of <i>probability</i> but this really is the
+    same thing, except that a probability is in the range [0; 1] whereas a weight has no such restriction.
+
+Here's how Huffman's algorithm works in detail:
+ 1. Build a collection of tree items, one for each symbol (all those items will be leaves)
+ 2. Pick the two items with the lowest weights and remove them from the collection.
+ 3. Make a new tree item (a node)
+   - The two items you've just picked become the node's children
+   - The node's weight is the sum of its children's weights
+ 4. Insert that node in the collection
+ 5. Go back to step #2
+
+After _N-1_ iterations, there remains only a single item in the collection: the tree's root. Put a
+label (`0` or `1`) on each branch and _voilà_!
+
+The most common way to implement this is to use a priority queue (such as a [heap](https://en.wikipedia.org/wiki/Heap_(data_structure))
+to easily retrieve the item with the smallest weight. Doing so yields an <i>O(n log n)</i> run-time
+complexity.
+
+Example Data
+============
+
+For examples, I will use the following 16 symbols with the below probabilities in pretty much the rest
+of this article. Why 16 symbols? For no particular reason other than being a good balance between too few
+and too many.
+
+***********************************************************************
+* +--------+-------+-------+-------+--------+-------+--------+-------+
+* |    A   |   B   |   C   |   D   |    E   |   F   |    G   |   H   |
+* +--------+-------+-------+-------+--------+-------+--------+-------+
+* | 11,92% | 2,90% | 6,37% | 4,75% | 15,66% | 2,54% |  3,47% | 4,21% |
+* +--------+-------+-------+-------+--------+-------+--------+-------+
+* |    I   |   J   |   K   |   L   |    M   |   N   |   O    |   P   |
+* +--------+-------+-------+-------+--------+-------+--------+-------+
+* | 10,59% | 0,28% | 1,55% | 7,70% |  4,23% | 9,34% | 10,05% | 4,44% |
+* +--------+-------+-------+-------+--------+-------+--------+-------+
+***********************************************************************
+
+And here's Huffman's algorithm in all its might on those 16 symbols:
+
+![Huffman's algorithm](img/huffman-tree.gif)
+
+Canonical Representation
+========================
+
+So far, left branches have been labelled as `0` and right ones as `1`. But this is totally arbitrary,
+we could have done the opposite and still gotten proper prefix codes. We could even have randomly
+labelled branches and that would still have been proper prefix codes.
+
+![A Prefix-Codes Tree With Random Labels](img/huffman-tree-random-labels.png)
+
+The conclusion to all this is that branch labels don't matter. But then what does? Path lengths do!
+We only need to know what is the length of each code and we can rebuild proper prefix codes. If we
+add the condition that at equal code lengths codes must be sorted in symbol order, then we have
+what is called the canonical representation.
+
+This representation has one huge advantage: the only information that needs to be shared between the
+encoder and the decoder is each symbol's code length.
+
+Rebuilding the codes from the lengths happens to be really easy:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c++
+unsigned nextCode   = 0;
+unsigned prevLength = 0;
+for (unsigned i=0; i!=usedSymbolCount; ++i)
+{
+	unsigned symbol = symbolsSortedByLength[i];
+	unsigned length = lengths[symbol];
+	codes[symbol] = nextCode << (length - prevLength);
+
+	nextCode   = code + 1;
+	prevLength = length;
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here's the canonical tree that is equivalent to the previous one (note that the weights are absent,
+because they're not needed):
+![Canonical Huffman Tree](img/huffman-tree-canonical.png)
+
+Encoding
+========
+
+Encoding is trivial: simply fill a lookup table with each symbol's code and you're good to go.
+You must however pay attention to bit ordering: canonical codes as implemented above are in
+MSB-first order (i.e. the first segment of the path from the root is the most-significant bit). If
+you need an LSB-first code, the easiest really is to just reverse the bits.
+
+!!! Note
+    The advantages of MSB-first v. LSB-first are beyond the scope of this article. I suggest you
+    read Fabian Giesen's take on it: Reading bits in far too many ways
+    ([part 1](https://fgiesen.wordpress.com/2018/02/19/reading-bits-in-far-too-many-ways-part-1/),
+    [part 2](https://fgiesen.wordpress.com/2018/02/20/reading-bits-in-far-too-many-ways-part-2/) &
+    [part 3](https://fgiesen.wordpress.com/2018/09/27/reading-bits-in-far-too-many-ways-part-3/)).
+
+Decoding
+========
+
+Naïve Decoding
+--------------
+
+The classic way to decode prefix codes is to read bits one by one and descend the tree until we
+reach a leaf. However, this requires to have a tree, which is a step we managed to skip by
+generating codes directly from the lengths thanks to the canonical representation. We can always
+rebuild a tree from the lengths but there's a better way to decode...
+
+Table-Based Decoding
+--------------------
+
+The main issue is that we don't know know what is a symbol's length prior to reading it. Here are
+the canonical codes for each of the symbols in our example:
+
+Symbol |      Code
+-------|----------:
+ 'A':  |     `000`
+ 'E':  |     `001`
+ 'I':  |     `010`
+ 'N':  |     `011`
+ 'O':  |     `100`
+ 'C':  |    `1010`
+ 'D':  |    `1011`
+ 'L':  |    `1100`
+ 'B':  |   `11010`
+ 'G':  |   `11011`
+ 'H':  |   `11100`
+ 'M':  |   `11101`
+ 'P':  |   `11110`
+ 'F':  |  `111110`
+ 'J':  | `1111110`
+ 'K':  | `1111111`
+
+The codes are in ascending order, but not only that: all codes of a given length are consecutive.
+We can even go further, if we align codes left and pad them with zeroes they remain in ascending
+order.
+
+Symbol | Code                        | Index
+-------|-----------------------------|------:
+ 'A':  | <code><b>000</b><u>0000</u></code> |    0
+ 'E':  | <code><b>001</b><u>0000</u></code> |    1
+ 'I':  | <code><b>010</b><u>0000</u></code> |    2
+ 'N':  | <code><b>011</b><u>0000</u></code> |    3
+ 'O':  | <code><b>100</b><u>0000</u></code> |    4
+ 'C':  | <code><b>1010</b><u>000</u></code> |    5
+ 'D':  | <code><b>1011</b><u>000</u></code> |    6
+ 'L':  | <code><b>1100</b><u>000</u></code> |    7
+ 'B':  | <code><b>11010</b><u>00</u></code> |    8
+ 'G':  | <code><b>11011</b><u>00</u></code> |    9
+ 'H':  | <code><b>11100</b><u>00</u></code> |   10
+ 'M':  | <code><b>11101</b><u>00</u></code> |   11
+ 'P':  | <code><b>11110</b><u>00</u></code> |   12
+ 'F':  | <code><b>111110</b><u>0</u></code> |   13
+ 'J':  | <code><b>1111110</b><u></u></code> |   14
+ 'K':  | <code><b>1111111</b><u></u></code> |   15
+
+We can use this observation to build a table of the first code of each length. Using such a table
+we can read _N_ bits (7 in our example, but most likely 32 or 64) and, by iterating over the table's
+entries, figure out what is a symbol's length. This same table can also give the index (in the table
+of symbols ordered by length) of the first symbol of that length.
+
+Length | First Code | Index
+-------|------------|------:
+0      | `0000000`  |    0
+1      | `0000000`  |    0
+2      | `0000000`  |    0
+3      | `0000000`  |    0
+4      | `1010000`  |    5
+5      | `1101000`  |    8
+6      | `1111100`  |   13
+7      | `1111111`  |   14
+
+!!! Tip
+    Entries that correspond to unused lengths should have the same content as the next valid entry.
+    Doing so avoids having to treat them as special cases. Such is the case here for the first
+    three entries that have the same content as entry #3.
+
+Length Computation Optimizations
+================================
+
+Fast Tree Building
+------------------
+
+If we take a closer look at Huffman's algorithm, we can notice that nodes are created in a specific
+order: their weights are increasing. This means that they are naturally sorted. If the leaves happened
+to be sorted too, then this would ressemble a lot the [merge algorithm](https://en.wikipedia.org/wiki/Merge_algorithm),
+with the subtlety that the nodes collection is being constructed as we go.
+
+Merging two sorted collections can be done with linear time complexity. As we've just seen, nodes
+are already sorted so we only need to sort leaves and this is really easy (and fast) to do. It can
+even be done in linear time too using [radix sort](https://en.wikipedia.org/wiki/Radix_sort).
+
+Here's how the algorithm works. We start with an array of 2N-1 slots, the lower N slots are filled
+with leaves, sorted in order of ascending weights. At each iteration we're going to fill one of the
+remaining slots in the array: the nodes.
+
+![Initial state: only leaves](img/fast-huffman-step0.png)
+
+We prime the pump by making the first node out of the first two leaves and we mark them as consumed.
+
+![Step 1: make a node from the first two leaves](img/fast-huffman-step1.png)
+
+For the next step, each child must be chosen from either the lowest unconsumed leaf or the oldest
+unconsumed node, whichever has the lowest weight. In case of tie, we consume a leaf rather than a
+node (this keeps the tree flatter).
+
+![Step 2: make the second node](img/fast-huffman-step2.png)
+
+We keep going like this until the array is filled. The last slot in the array is the tree's root.
+
+![Building the tree](img/fast-huffman.gif)
+
+Fast Length Retrieval
+---------------------
+
+To compute the symbol's length we need to recurse the tree. This is not really complicated nor
+expensive but there's a better and faster way to do it. Until now when we built a node we had it
+point to its children:
+
+![Nodes point to their children](img/fast-huffman-end.png)
+
+Let's do it the other way around: let's have children point to their parents. That's already a win
+because that's only one pointer per item instead of two (that's the same number of useful pointers
+in total but leaves' children happened to be unused).
+
+![Items point to their parents](img/fast-lengths-step0.png)
+
+Let's set the root item's length to be 0.
+
+![Initial state: root's length is 0](img/fast-lengths-step1.png)
+
+We now only need to scan the array in reverse and compute an item's length as being that of its
+parent plus 1.
+
+![Computing lengths is now trivial](img/fast-lengths.gif)
+
+In-Place Huffman
+----------------
+
+If we take an even closer look at the algorithm, we notice that leaves are always consumed at least
+as fast as nodes are created (this is not immediately obvious but trust me, it's true). It is
+therefore possible to use an array of only N slots if we overwrite consumed leaves with nodes.
+But then how do we compute the lengths of the leaves if we no longer have them?
+
+In their [1995 paper](Alistair Moffat and Kyrki Katajainen), Moffat and Katajainen describe the
+solution. We have all the information we need to recover how many leaves there are at each depth:
+ - If there are _N_ nodes at level _D-1_, then level _D_ contains _2N_ items.
+ - The number of leaves at any level is the number of items minus the number of nodes at that level.
+ - Before being overwritten, leaves were in ascending weight order: that's the same as descending
+   depth order.
+
+!!! Note
+    Although this algorithm is very smart and quite fast, I mostly mention it for the sake of
+    completeness as the solution detailed earlier is both easier and faster (on 256 symbols at
+    least, things could be vastly different when dealing with a huge number of symbols).
+
+Misc. Optimizations
+-------------------
+
+### Item Footprint
+
+
+An item should look something like that:
+~~~~~~~~~~~~~~~~~~~~~~c++
+struct HuffmanTreeItem
+{
+    size_t           weight;
+    HuffmanTreeItem* parent;
+    size_t           length;
+};
+~~~~~~~~~~~~~~~~~~~~~~
+
+But, pay attention to how the algorithm works:
+ - Once we set an item's parent we will no longer use its weight.
+ - Once we set an item's length we will no longer use its parent.
+So, we only need one of the `struct`'s members at a time: we can therefore turn it into a `union`!
+
+~~~~~~~~~~~~~~~~~~~~~~c++
+union HuffmanTreeItem
+{
+    size_t           weight;
+    HuffmanTreeItem* parent;
+    size_t           length;
+};
+~~~~~~~~~~~~~~~~~~~~~~
+
+### Leaf Sentinel
+
+To avoid checking at each iteration if there are any unconsumed leaves, you can insert a sentinel
+item between the leaves and the nodes. This item is simply one with a weight so big it will never
+be consumed.
+
+### Node Sentinel
+
+The same technique can be used to avoid checking for node exhaustion: initialize all the slots
+where nodes will be written with that same huge weight.
+
+!!! Warning
+    The sentinel node technique is not compatible with in-place Huffman
+
+
+Maximum Code Length
+===================
+
+Theoretical Maximum
+-------------------
+
+So far, we totally ignored the fact that prefix codes as generated by Huffman's algorithm can
+potentially be long, very long. In the worst case, the longest code contains as many bits as there
+are symbols. This is not much of problem for our example because that's a very manageable maximum
+of 16 bits. However, for real-world cases with 256 different bytes, that's a different story...
+
+But can this worst case scenario actually happen? Not really, because that would require a data set
+so large that this is currently impossible. However, degenerate cases that cause the length of codes
+to exceed 32 or 64 bits are possible (unlikely, yet possible).
+
+The worst case happens when symbol distribution follows the [Fibonacci sequence](https://en.wikipedia.org/wiki/Fibonacci_sequence).
+A 32-bit code length can therefore be reached with a set of 5 702 886 bytes. For a 64-bit code
+length, this takes 25.3 TiB: really really large but not impossible.
+
+Length Limiting
+---------------
+
+Still, it would be nice if we could have a strong guarantee that code lengths won't exceed a certain
+maximum. Luckily, this is possible and there are several ways to achieve this.
+
+The first and most optimal one is called the package-merge algorithm. It builds a prefix-code tree of
+increasingly larger depth with each iteration. You only need to stop it at some desired iteration to
+obtain length-limited prefix codes. If you don't stop it, it converges to the same prefix codes as
+Huffman's algorithm would, only much more slowly. Package merge runs in _O(n×D)_ where _D_
+is the maximum allowed depth, whereas, as we've seen, Huffman can be implemented in _O(n)_.
+
+Package-merge is beyond the scope of this article, if you wish to know more please refer to
+[Wikipedia](https://en.wikipedia.org/wiki/Package-merge_algorithm) or, for a more understandable
+version, look at [Stephan Brumme's implementation](https://create.stephan-brumme.com/length-limited-prefix-codes/).
+
+!!! Note
+    Remember how I mentioned that Hufffman was akin to a **merge** algorithm?
+
+There are easier and faster ways to length-limit prefix codes, but before we get to them, there is
+something we need to talk about:
+
+The Kraft-McMillan Inequality
+-----------------------------
+
+As we have seen, all we need to rebuild prefix codes are their lengths. However, not all combinations
+of lengths yield proper prefix codes. This is where the [Kraft-McMillan inequality](https://en.wikipedia.org/wiki/Kraft%E2%80%93McMillan_inequality)
+enters the game. It states that the following condition must be true for proper prefix codes to exist:
+
+$$\sum_{s\in symbols}^{} 2^{-length(s)} \le 1$$
+
+Here's how to compute the sum using fixed-point math. This is very similar to how canonical prefix codes
+are computed from lengths, and this is another case of non-coincidence.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c++
+const unsigned kraftOne = 1 << maxCodeLength;
+unsigned kraftSum = 0;
+for (size_t symbol=0; symbol!=symbolCount; ++symbol)
+    kraftSum += kraftOne >> lengths[symbol];
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fast Length-Limiting
+--------------------
+
+Just clamp all the lengths to your desired maximum length. It is now very likely that the Kraft-McMillan
+inequality is violated. Let's fix it by adding 1 to the lengths of the least frequent symbols (that
+haven't reached the max length yet, of course) until the inequality is fixed. Once this is done, if
+the Kraft-McMillan sum is not equal to 1, this means that we can re-shorten a few of the symbols we
+have just lengthened: let's do this from the most frequent ones first and stop before we would violate
+the inequality once again.
+
+Admitedly, this is not a great method and I refer you once again to [Stephan Brumme's page](https://create.stephan-brumme.com/length-limited-prefix-codes/)
+for several other length-limiting methods.
+
+!!! Tip
+    When the Kraft-McMillan sum is computed in fixed-point math as above, if we modify a code's
+    length we need to do:<br>
+    `krafSum += (kraftOne >> newLength) - (kraftOne >> oldLength);`<br>
+    <br>
+    So, for lengthening a code, this simplifies to:<br>
+    `krafSum -= (kraftOne >> newLength);`<br>
+    <br>
+    And for shortening a code, this simplifies to:<br>
+    `krafSum += (kraftOne >> oldLength);`<br>
+
+Fast and Smart Length-Limiting
+------------------------------
+
+Render to Caesar what is Caesar's: I first read about this method on [Charles Bloom's blog](http://cbloomrants.blogspot.com/2018/04/engel-coding-and-length-limited-huffman.html).
+Charles Bloom, in turn, attributes it to [Joen Engel](https://github.com/JoernEngel/joernblog/blob/master/engel_coding.md).
+
+The starting point is the same as the previous method: compute Huffman lengths and clamp them,
+we now again need to fix the Kraft-McMillan inequality. However, we're going to select which
+codes we lengthen and shorten (yes, shorten) with more care. We have two criteria for this:
+ 1. At each iteration we want the Kraft-McMillan sum to get closer to 1. We don't care whether
+    we end up above or below that target. All that matters, is getting closer to it.
+ 2. We use a cost function to decide which code to modify.
+
+The cost function we want to minimize is:
+$$\frac{weight}{\Delta distance}$$
+
+There aren't many codes to consider at each iteration: only one per length, because all codes of a
+given distance yield the same _Δdistance_.
+
+ - If we're above 1, _Δdistance_ must be < 0 (we'll need to lengthen a code):<br>
+   only the code with the largest weight of each length needs to be considered.
+ - If we're below 1, _Δdistance_ must be > 0 (we'll need to shorten a code):<br>
+   only the code with the lowest weight of each length needs to be considered.
+
+Just in case this method would not converge, we can always use the the previous dumb length-limiting
+method as a fallback to finish the job.
+
+!!! Note
+   I found this method to be very effective, it's really fast and usually exactly as good as package-merge.
+   Only in a few cases did package-merge prove better and by a very very thin margin.
+
+Decoding By Lookup Table
+========================
+
+The Principle
+-------------
+
+We have already seen a table-based decoding technique, but we still had to iterate on that table to
+find a code's length. Now that we a have the guarantee that codes cannot exceed a given length, we
+can devise a much faster way to decode our prefix-codes: a lookup table. Let _M_ be the maximum
+length, we always read _M_ bits and use them to look in a table of <i>2<sup>M</sup></i> entries
+that tells us what is the corresponding symbol and what is its length.
+
+Such a table would have more entries for short symbols than for longer ones. Still using our
+same example data set, whose maximum length is 7, the 3-bit codes would have 16 entries each
+(3 data bits + 4 fill bits), the 4-bit codes would have 8 entries, and so on until the 7-bit
+codes with one entry each. The table would look like that:
+
+********************************
+* +---------+--------+--------+
+* | Entry   | Symbol | Length |
+* +---------+--------+--------+
+* | 0000000 |  'A'   |    3   |
+* | 0000001 |  'A'   |    3   |
+* | 0000010 |  'A'   |    3   |
+* | 0000011 |  'A'   |    3   |
+* | 0000100 |  'A'   |    3   |
+* | 0000101 |  'A'   |    3   |
+* | 0000110 |  'A'   |    3   |
+* | 0000111 |  'A'   |    3   |
+* | 0001000 |  'A'   |    3   |
+* | 0001001 |  'A'   |    3   |
+* | 0001010 |  'A'   |    3   |
+* | 0001011 |  'A'   |    3   |
+* | 0001100 |  'A'   |    3   |
+* | 0001101 |  'A'   |    3   |
+* | 0001110 |  'A'   |    3   |
+* | 0001111 |  'A'   |    3   |
+* | 0010000 |  'E'   |    3   |
+* | …       |   …    |    …   |
+* | 0011111 |  'E'   |    3   |
+* | 0100000 |  'I'   |    3   |
+* | …       |   …    |    …   |
+* | 0101111 |  'I'   |    3   |
+* | 0110000 |  'N'   |    3   |
+* | …       |   …    |    …   |
+* | 0111111 |  'N'   |    3   |
+* | 1000000 |  'O'   |    3   |
+* | …       |   …    |    …   |
+* | 1001111 |  'O'   |    3   |
+* | 1010000 |  'C'   |    4   |
+* | …       |   …    |    …   |
+* | 1011111 |  'C'   |    4   |
+* | 1010000 |  'D'   |    4   |
+* | …       |   …    |    …   |
+* | 1011111 |  'D'   |    4   |
+* | 1100000 |  'L'   |    4   |
+* | …       |   …    |    …   |
+* | 1101111 |  'L'   |    4   |
+* | 1101000 |  'B'   |    5   |
+* | …       |   …    |    …   |
+* | 1101011 |  'B'   |    5   |
+* | 1101100 |  'G'   |    5   |
+* | …       |   …    |    …   |
+* | 1101111 |  'G'   |    5   |
+* | 1110000 |  'H'   |    5   |
+* | …       |   …    |    …   |
+* | 1110011 |  'H'   |    5   |
+* | 1110100 |  'M'   |    5   |
+* | …       |   …    |    …   |
+* | 1110111 |  'M'   |    5   |
+* | 1111000 |  'P'   |    5   |
+* | …       |   …    |    …   |
+* | 1111011 |  'P'   |    5   |
+* | 1111100 |  'F'   |    6   |
+* | 1111101 |  'F'   |    6   |
+* | 1111110 |  'J'   |    7   |
+* | 1111111 |  'K'   |    7   |
+* +---------+--------+--------+
+********************************
+
+Which Table Size?
+-----------------
+
+In practice, of course, the decoding table will be much larger than the one above because we would
+be dealing with bytes (i.e. 256 possible symbols). On one hand, limiting the lengths of codes
+negativey impacts the compression ratio so we would like to keep them as long as possible; on the
+other hand, long codes require large decoding tables so we would like to make them as short as
+possible. We need to find a tradeoff between those two goals, let's look at which limits are used
+in popular data formats.
+
+JPEG has a 16-bit limit and zip has a 15-bit one. At 2 bytes per entry, they respectively require
+128 KiB and 64 KiB decoding tables. JPEG dates from 1991 whereas zip dates from 1989, a time when
+CPU cache was not as crucial as it is now and was anyway too small to hold an entire decoding table
+(1989's Intel i486 only had 8 KiB of cache). Recent processors (as of 2024), however, have between
+32 KiB and 64 KiB of L1 data cache per core so those tables are still too large for them. And even
+without considering the cache, building a larger table requires more time, this has to be taken into
+account as well.
+
+Let's now look at a more recent format: [Zstandard uses an 11-bit limit](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#huffman-tree-description).
+The corresponding table weighs only 4 KiB: perfectly fits in the L1 cache of even low-end processors.
+
+!!! Info
+    An [11-bit limit](https://fgiesen.wordpress.com/2021/08/30/entropy-coding-in-oodle-data-huffman-coding/)
+    is also used in [RAD Game Tool's Oodle compressors](https://www.radgametools.com/oodle.htm)
+    because lowering the length limit has another nice property: the number of symbols you can
+    provably decode without having to refill the bit buffer.
+
+Multi-Symbol Decoding
+---------------------
+
+Our most likely symbols (A, E, I, N and O) are coded on 3 bits and they account for 57.56% of all
+the symbols. The 4-bit symbols (C, D and L) account for 18.82% of all the symbols. Together, the
+3 and 4-bit symbols account for 76.38% of all the symbols. Therefore, we have a very high chance
+that when we read 7 bits to look up in the decoding table, those 7 bits contain more than one
+coded symbol.
+
+We can modify the table to tell us how many symbols the bits contain, which are those symbols and
+what is their cumulated length. Such a table, of course, has larger entries than the previous table,
+but this remains reasonnable. If we double the size of an entry (i.e. 4 bytes), we can store up to
+three symbols (24 bits for the symbols, 4 bits for the cumulated length and 4 bits for the number
+of symbols).
+
+******************************************
+* +---------+---------+--------+--------+
+* | Entry   | Symbols | Count  | Length |
+* +---------+---------+--------+--------+
+* | 0000000 | 'A' 'A' |   2    |   6    |
+* | 0000001 | 'A' 'A' |   2    |   6    |
+* | 0000010 | 'A' 'E' |   2    |   6    |
+* | 0000011 | 'A' 'E' |   2    |   6    |
+* | 0000100 | 'A' 'I' |   2    |   6    |
+* | 0000101 | 'A' 'I' |   2    |   6    |
+* | 0000110 | 'A' 'N' |   2    |   6    |
+* | 0000111 | 'A' 'N' |   2    |   6    |
+* | 0001000 | 'A' 'O' |   2    |   6    |
+* | 0001001 | 'A' 'O' |   2    |   6    |
+* | 0001010 | 'A' 'C' |   2    |   7    |
+* | 0001011 | 'A' 'D' |   2    |   7    |
+* | 0001100 | 'A' 'L' |   2    |   7    |
+* | 0001101 | 'A'     |   1    |   3    |
+* | 0001110 | 'A'     |   1    |   3    |
+* | 0001111 | 'A'     |   1    |   3    |
+* | 0010000 | 'E' 'A' |   2    |   6    |
+* | …       |   …     |   …    |   …    |
+* | 0011111 | 'E'     |   1    |   3    |
+* | 0100000 | 'I' 'A' |   2    |   6    |
+* | …       |   …     |   …    |   …    |
+* | 0101111 | 'I'     |   1    |   3    |
+* | 0110000 | 'N' 'A' |   2    |   6    |
+* | …       |   …     |   …    |   …    |
+* | 0111111 | 'N'     |   1    |   3    |
+* | 1000000 | 'O' 'A' |   2    |   6    |
+* | …       |   …     |   …    |   …    |
+* | 1001111 | 'O'     |   3    |   3    |
+* | 1010000 | 'C' 'A' |   2    |   7    |
+* | …       |   …     |   …    |   …    |
+* | 1011111 | 'C'     |   1    |   4    |
+* | 1010000 | 'D' 'A' |   2    |   7    |
+* | …       |   …     |   …    |   …    |
+* | 1011111 | 'D'     |   1    |   4    |
+* | 1100000 | 'L' 'A' |   2    |   7    |
+* | …       |   …     |   …    |   …    |
+* | 1101111 | 'L'     |   1    |   4    |
+* | 1101000 | 'B'     |   1    |   5    |
+* | …       |   …     |   …    |   …    |
+* | 1101011 | 'B'     |   1    |   5    |
+* | 1101100 | 'G'     |   1    |   5    |
+* | …       |   …     |   …    |   …    |
+* | 1101111 | 'G'     |   1    |   5    |
+* | 1110000 | 'H'     |   1    |   5    |
+* | …       |   …     |   …    |   …    |
+* | 1110011 | 'H'     |   1    |   5    |
+* | 1110100 | 'M'     |   1    |   5    |
+* | …       |   …     |   …    |   …    |
+* | 1110111 | 'M'     |   1    |   5    |
+* | 1111000 | 'P'     |   1    |   5    |
+* | …       |   …     |   …    |   …    |
+* | 1111011 | 'P'     |   1    |   5    |
+* | 1111100 | 'F'     |   1    |   6    |
+* | 1111101 | 'F'     |   1    |   6    |
+* | 1111110 | 'J'     |   1    |   7    |
+* | 1111111 | 'K'     |   1    |   7    |
+* +---------+---------+--------+--------+
+******************************************
+
+Decoding Even Faster
+====================
+
+It seems that we cannot speed up decoding any more: a simple table lookup allows us to decode between
+one and three symbols. The only thing that limits the speed is the time it takes the CPU to read the
+bits, look up in the table and write the symbols. The decoding table is in the L1 cache, the bitstream
+is probably also in the cache and writing the symbols is not a dependency for the next symbol so the
+time it takes does not really matter. How can we speed it up even more?
+
+Several Decodes Per Refill
+--------------------------
+
+When we refill our bit buffer, we can do it more than one byte at a time. We can even read a whole
+machine word at each refill (32 bits on a 32-bit machine and 64 bits on a 64-bit machine), it's
+about as expensive as reading a byte after all. However, this brings two new complications:
+ - The processor must support unaligned reads (not all processors do).
+ - The order of the data we'll read depends on the processor's endianness (but it's usually cheap to
+   swap data's endianness)
+
+If, whatever the state of the bit buffer, we read 64 bits of data at each refill, we can guarantee that
+the bit buffer will always contain at least 64 bits of data after the refill. Therefore, if our length
+limit is 12 we are certain we can decode at least 5 symbols before having to refill again. We've just
+made the read dependency 5 times cheaper!
+
+Multiple Streams
+----------------
+
+However, we still have a dependency between consecutive symbols: we don't know what are the bits of symbol
+_N_ until we know how many bits symbol _N-1_ consumes. We cannot eliminate this dependency as it is at the
+heart of prefix codes. But if we encode consecutive symbols in different bistreams we mask that dependency.
+Say we have two bitstreams, we can encode one symbol out of two in the first bitstream and the
+other symbols in the second bistream. By doing so, symbol _N_ no longer depends on symbol _N-1_'s length
+being known but on symbol _N-2_'s. By increasing the number of streams we can mask the latencies enough to
+become a non-issue.
+
+Zstandard uses [up to 4 bistreams](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#literals_section_header)
+whereas [Oodle uses 6](https://fgiesen.wordpress.com/2023/10/29/entropy-decoding-in-oodle-data-x86-64-6-stream-huffman-decoders/).
+There is, however, a huge difference between the two approaches: Zstandard uses both the multi-stream and
+multi-symbol techniques (which is [complicated](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-5-combining.html)),
+whereas Oodle uses only the multi-stream one. The combined approach can reach a higher peak throughput but
+this depends on the data whereas the multi-stream-only approach has a sustained performance.
+
+
+
+References
+==========
+ - Charles Bloom, 2018.<br>
+   [Engel Coding and Length Limited Huffman Heuristic Revisited](Engel Coding and Length Limited Huffman Heuristic Revisited)
+ - Stephan Brumme, 2021.<br>
+   [Length-Limited Prefix Codes](https://create.stephan-brumme.com/length-limited-prefix-codes/)
+ - Yann Collet, 2015.<br>
+   Huffman revisited ([part 1](http://fastcompression.blogspot.com/2015/07/huffman-revisited-part-1.html),
+                      [part 2](http://fastcompression.blogspot.com/2015/07/huffman-revisited-part-2-decoder.html),
+                      [part 3](http://fastcompression.blogspot.com/2015/07/huffman-revisited-part-3-depth-limited.html),
+                      [part 4](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-4-multi-bytes.html),
+                      [part 5](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-5-combining.html))
+ - Fabian Giesen, 2018.<br>
+   Reading bits in far too many ways ([part 1](https://fgiesen.wordpress.com/2018/02/19/reading-bits-in-far-too-many-ways-part-1/),
+                                      [part 2](https://fgiesen.wordpress.com/2018/02/20/reading-bits-in-far-too-many-ways-part-2/),
+                                      [part 3](https://fgiesen.wordpress.com/2018/09/27/reading-bits-in-far-too-many-ways-part-3/)).
+ - David A. Huffman, 1952.<br>
+   A Method for the Construction of Minimum-Redundancy Codes.
+ - Alistair Moffat and Kyrki Katajainen, 1995.<br>
+   [In-place calculation of minimum-redundancy codes](https://people.eng.unimelb.edu.au/ammoffat/abstracts/mk95wads.html).
+
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://morgan3d.github.io/markdeep/latest/markdeep.min.js" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

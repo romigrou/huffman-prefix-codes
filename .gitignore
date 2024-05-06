@@ -1,0 +1,8 @@
+.vscode
+bin
+build
+lib
+tests/*.tsv
+tests/corpora
+tests/graphviz
+tests/gtest

@@ -1,0 +1,13 @@
+root = true
+
+[*]
+indent_style = space
+tab_width    = 4
+indent_size  = 4
+end_of_line  = crlf
+charset      = latin1
+trim_trailing_whitespace = true
+insert_final_newline     = true
+
+[index.html]
+charset      = utf-8
