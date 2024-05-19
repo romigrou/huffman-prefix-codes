@@ -1,7 +1,7 @@
 Prefix-Codes
 ============
 
-This repository contains both the source code for the page [Huffman and Prefix Codes](https://romigrou.github.io/prefix-codes/)
+This repository contains both the source code for the page [The (Complete?) Guide to Huffman and Prefix Codes](https://romigrou.github.io/prefix-codes/)
 and its companion example implementations.
 
 Those example implementations start from the easiest one and each incrementally
@@ -11,10 +11,13 @@ improves upon the previous one:
   3. [Build the Huffman tree with linear time complexity](src/03-fast-huffman.cpp)
   4. [Compute code lengths faster by avoiding to recurse the Huffman tree](src/04-fast-lengths.cpp)
 
+**Note**: the code is this repository was written so as to remain as legible as possible,
+          it is not meant to be the most optimized implementation around
+
 Licensing
 ---------
 
-This library is licensed under the zlib license, as follows:
+The code in this repository is licensed under the zlib license, as follows:
 
 > Copyright © 2024, Romain Bailly
 >

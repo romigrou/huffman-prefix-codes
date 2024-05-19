@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 
-             **Huffman and Prefix Codes**
+             **The (Complete?) Guide to<br>Huffman and Prefix Codes**
 
 Foreword
 ========
@@ -10,6 +10,10 @@ David Huffman's paper dates back from 1952, and, although advances were made in 
 pretty much nothing new has popped up in the past twenty years. So, why the need for this page?
 Simply because information is scattered all over the Internet and I would have liked having such
 an all-in-one-location reference when I started learning about Huffman and prefix coding.
+
+!!! Tip
+    Example implementations of several of the techniques discussed here can be found in the
+    companion [git repository](https://github.com/romigrou/prefix-codes)
 
 Crash Course in Entropy Coding
 ==============================
@@ -468,9 +472,16 @@ given distance yield the same _Δdistance_.
 Just in case this method would not converge, we can always use the the previous dumb length-limiting
 method as a fallback to finish the job.
 
-!!! Note
-   I found this method to be very effective, it's really fast and usually exactly as good as package-merge.
-   Only in a few cases did package-merge prove better and by a very very thin margin.
+I found this method to be very effective, it's really fast and usually exactly as good as package-merge.
+Only in a few cases did package-merge prove better and by a very very thin margin. Here's the
+compression ratio for the `dickens` file from the [Silesia corpus](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia):
+
+Limit  |    9    |    10   |    11   |   12    |   13    |   14    |   15
+-------|--------:|--------:|--------:|--------:|--------:|--------:|-------:|
+PMerge | 58.785% | 57.843% | 57.468% | 57.287% | 57.212% | 57.181% | 57.169%
+Smart  | 58.785% | 57.843% | 57.468% | 57.287% | 57.213% | 57.188% | 57.171%
+Diff.  |  0.000% |  0.000% |  0.000% |  0.000% |  0.001% |  0.007% |  0.002%
+
 
 Decoding By Lookup Table
 ========================
@@ -573,11 +584,17 @@ account as well.
 Let's now look at a more recent format: [Zstandard uses an 11-bit limit](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#huffman-tree-description).
 The corresponding table weighs only 4 KiB: perfectly fits in the L1 cache of even low-end processors.
 
+Here are graphs of how the compression ratio of two files from the Silesia corpus evolves as the
+length limit changes (in both cases the smart limiting algorithm was used):
+
+![dickens](img/dickens.png)
+![samba](img/samba.png)
+
 !!! Info
     An [11-bit limit](https://fgiesen.wordpress.com/2021/08/30/entropy-coding-in-oodle-data-huffman-coding/)
     is also used in [RAD Game Tool's Oodle compressors](https://www.radgametools.com/oodle.htm)
-    because lowering the length limit has another nice property: the number of symbols you can
-    provably decode without having to refill the bit buffer.
+    because lowering the length limit has another nice property: this increases the number of
+    symbols you can provably decode without having to refill the bit buffer.
 
 Multi-Symbol Decoding
 ---------------------
@@ -686,8 +703,8 @@ Multiple Streams
 
 However, we still have a dependency between consecutive symbols: we don't know what are the bits of symbol
 _N_ until we know how many bits symbol _N-1_ consumes. We cannot eliminate this dependency as it is at the
-heart of prefix codes. But if we encode consecutive symbols in different bistreams we mask that dependency.
-Say we have two bitstreams, we can encode one symbol out of two in the first bitstream and the
+heart of prefix codes. But if we encode consecutive symbols in different bistreams we can mask that
+dependency. Say we have two bitstreams, we can encode one symbol out of two in the first bitstream and the
 other symbols in the second bistream. By doing so, symbol _N_ no longer depends on symbol _N-1_'s length
 being known but on symbol _N-2_'s. By increasing the number of streams we can mask the latencies enough to
 become a non-issue.
@@ -696,8 +713,8 @@ Zstandard uses [up to 4 bistreams](https://github.com/facebook/zstd/blob/dev/doc
 whereas [Oodle uses 6](https://fgiesen.wordpress.com/2023/10/29/entropy-decoding-in-oodle-data-x86-64-6-stream-huffman-decoders/).
 There is, however, a huge difference between the two approaches: Zstandard uses both the multi-stream and
 multi-symbol techniques (which is [complicated](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-5-combining.html)),
-whereas Oodle uses only the multi-stream one. The combined approach can reach a higher peak throughput but
-this depends on the data whereas the multi-stream-only approach has a sustained performance.
+whereas Oodle uses only the multi-stream one. The combined approach can reach a higher peak throughput
+(but this depends on the data) whereas the multi-stream-only approach has a sustained performance.
 
 
 
