@@ -124,28 +124,37 @@ void dump_canonical_tree(const char* filepath, const uint8_t lengths[], size_t s
         return;
     }
     fprintf(file, "graph {\n");
+    fprintf(file, "\tn [label=\"\"];\n"); // Root node
 
-    unsigned code = 0;
-    fprintf(file, "\tn [label=\"\"];\n");
-    for (unsigned length=1, usedSymbolNum=0; usedSymbolNum < usedSymbolCount; ++length)
+    unsigned lastNode[32] = {}; // Last dumped node of each length
+    unsigned nextCode     = 0;
+    unsigned prevLength   = 0;
+    for (unsigned i=0; i!=usedSymbolCount; ++i)
     {
-        for (;usedSymbolNum < usedSymbolCount && lengths[usedSymbols[usedSymbolNum]] == length; ++usedSymbolNum, ++code)
+	    const unsigned symbol = usedSymbols[i];
+	    const unsigned length = lengths[symbol];
+	    const unsigned code   = nextCode << (length - prevLength);
+
+        // Create nodes to attach item to
+        for (unsigned l=1; l<length; ++l)
         {
-            const unsigned symbol = usedSymbols[usedSymbolNum];
-            fprintf(file, "\tn%s [label=<", as_binary(code,length).c_str());
-            const char* labelFormat = (isdigit(symbol) || isalpha(symbol)) ? "'%c'" : "0x%02X";
-            fprintf(file, labelFormat, symbol);
-            fprintf(file, ">];\n");
-            print_edge(file, code, length);
+            const unsigned node = code >> (length - l);
+            if (node > lastNode[l] || i == 0u)
+            {
+                fprintf(file, "\tn%s [label=\"\"];\n", as_binary(node,l).c_str());
+                print_edge(file, node, l);
+                lastNode[l] = node;
+            }
         }
 
-        for (unsigned c=code; c < (1u << length); ++c)
-        {
-            fprintf(file, "\tn%s [label=\"\"];\n", as_binary(c,length).c_str());
-            print_edge(file, c, length);
-        }
+        fprintf(file, "\tn%s [label=<", as_binary(code,length).c_str());
+        const char* labelFormat = (isdigit(symbol) || isalpha(symbol)) ? "'%c'" : "0x%02X";
+        fprintf(file, labelFormat, symbol);
+        fprintf(file, ">];\n");
+        print_edge(file, code, length);
 
-        code <<= 1;
+	    nextCode   = code + 1;
+	    prevLength = length;
     }
 
     fprintf(file, "}\n");
