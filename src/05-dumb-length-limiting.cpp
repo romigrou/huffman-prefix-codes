@@ -22,8 +22,7 @@
 
 /*
  * Changes from previous file:
- *  - Compute lengths directly instead of building a Huffman tree
- *  - Faster sort by length thanks to radix sort
+ *  - Length limiting using a simple algorithm
  */
 
 
@@ -209,6 +208,62 @@ void compute_huffman_lengths(uint8_t lengths[maxSymbolCount], const size_t weigh
 }
 
 
+void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedByWeight[maxSymbolCount], uint8_t lengthLimit) noexcept
+{
+    // Skip unused symbols
+    unsigned unusedCount = 0;
+    while (lengths[symbolsSortedByWeight[unusedCount]] == 0u)
+        ++unusedCount;
+
+    // Clamp lengths that are above the limit
+    unsigned firstBelowLimit;
+    for (firstBelowLimit=unusedCount; lengths[symbolsSortedByWeight[firstBelowLimit]] >= lengthLimit; ++firstBelowLimit)
+        lengths[symbolsSortedByWeight[firstBelowLimit]] = lengthLimit;
+
+    // Compute the Kraft-McMillan sum
+    const unsigned kraftOne = 1 << lengthLimit;
+    unsigned kraftSum = firstBelowLimit;
+    for (size_t i=firstBelowLimit; i<maxSymbolCount; ++i)
+    {
+        const size_t symbol = symbolsSortedByWeight[i];
+        uint8_t length = lengths[symbol];
+        length = std::min(length, lengthLimit);
+        kraftSum += kraftOne >> length;
+        lengths[symbol] = length;
+    }
+
+    // If the sum is greater than 1, we must fix the lengths
+    if (kraftSum > kraftOne)
+    {
+        // Lengthen symbols until Kraft inequality is fixed
+        size_t i = firstBelowLimit;
+        do
+        {
+            unsigned length = ++lengths[symbolsSortedByWeight[i++]];
+            kraftSum -= kraftOne >> length;
+        }
+        while (kraftSum > kraftOne);
+
+        // We might have fixed it a bit too much, let's try to un-fix some symbols
+        if (kraftSum < kraftOne)
+        {
+            while (--i > firstBelowLimit)
+            {
+                uint8_t& length = lengths[symbolsSortedByWeight[i]];
+                unsigned kraftSum2 = kraftSum + (kraftOne >> length);
+                if (kraftSum2 <= kraftOne)
+                {
+                    --length;
+                    if (kraftSum2 == kraftOne)
+                        break;
+                    kraftSum = kraftSum2;
+                }
+            }
+        }
+    }
+}
+
+
 uint8_t* sort_symbols_by_length(uint8_t symbolsSortedByLength[maxSymbolCount], const uint8_t lengths[maxSymbolCount]) noexcept
 {
     // Build length histogram
@@ -305,6 +360,11 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
     compute_huffman_lengths(lengths, weights, symbolsSortedByWeight);
     const Clock::time_point tLengths = Clock::now();
 
+    // Apply the length limit
+    const unsigned lengthLimit = 12;
+    limit_lengths(lengths, symbolsSortedByWeight, lengthLimit);
+    const Clock::time_point tLimit = Clock::now();
+
     // Sort symbols by length
     uint8_t symbolsSortedByLength[maxSymbolCount];
     const uint8_t* usedSymbols     = sort_symbols_by_length(symbolsSortedByLength, lengths);
@@ -374,7 +434,8 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
     printf("  Histogram:       %10.3f us\n", to_us(t0,            tHisto));
     printf("  Sort by weight:  %10.3f us\n", to_us(tHisto,        tSortByWeight));
     printf("  Compute lengths: %10.3f us\n", to_us(tSortByWeight, tLengths));
-    printf("  Sort by length:  %10.3f us\n", to_us(tLengths,      tSortByLength));
+    printf("  Limit lengths:   %10.3f us\n", to_us(tLengths,      tLimit));
+    printf("  Sort by length:  %10.3f us\n", to_us(tLimit,        tSortByLength));
     printf("  Compute codes:   %10.3f us\n", to_us(tSortByLength, tCodes));
     printf("  Encoding itself: %10.3f us\n", to_us(tCodes,        tDone));
     printf("\n");
