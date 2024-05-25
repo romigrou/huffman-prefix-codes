@@ -215,19 +215,13 @@ void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedB
     while (lengths[symbolsSortedByWeight[unusedCount]] == 0u)
         ++unusedCount;
 
-    // Clamp lengths that are above the limit
-    unsigned firstBelowLimit;
-    for (firstBelowLimit=unusedCount; lengths[symbolsSortedByWeight[firstBelowLimit]] >= lengthLimit; ++firstBelowLimit)
-        lengths[symbolsSortedByWeight[firstBelowLimit]] = lengthLimit;
-
-    // Compute the Kraft-McMillan sum
+    // Clamp lengths and compute Kraft-McMillan sum
     const unsigned kraftOne = 1 << lengthLimit;
-    unsigned kraftSum = firstBelowLimit;
-    for (size_t i=firstBelowLimit; i<maxSymbolCount; ++i)
+    unsigned kraftSum = 0;
+    for (size_t i=unusedCount; i<maxSymbolCount; ++i)
     {
         const size_t symbol = symbolsSortedByWeight[i];
-        uint8_t length = lengths[symbol];
-        length = std::min(length, lengthLimit);
+        uint8_t length = std::min(lengths[symbol], lengthLimit);
         kraftSum += kraftOne >> length;
         lengths[symbol] = length;
     }
@@ -235,8 +229,13 @@ void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedB
     // If the sum is greater than 1, we must fix the lengths
     if (kraftSum > kraftOne)
     {
+        // Skip symbols whose length is already at the limit
+        size_t i = unusedCount;
+        while (lengths[symbolsSortedByWeight[i]] == lengthLimit)
+            ++i;
+        const size_t firstBelowLimit = i;
+
         // Lengthen symbols until Kraft inequality is fixed
-        size_t i = firstBelowLimit;
         do
         {
             unsigned length = ++lengths[symbolsSortedByWeight[i++]];
@@ -247,7 +246,7 @@ void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedB
         // We might have fixed it a bit too much, let's try to un-fix some symbols
         if (kraftSum < kraftOne)
         {
-            while (--i > firstBelowLimit)
+            while (--i >= firstBelowLimit)
             {
                 uint8_t& length = lengths[symbolsSortedByWeight[i]];
                 unsigned kraftSum2 = kraftSum + (kraftOne >> length);
