@@ -88,7 +88,7 @@ Example Data
 
 For examples, I will use the following 16 symbols with the below probabilities in pretty much the rest
 of this article. Why 16 symbols? For no particular reason other than being a good balance between too few
-and too many.
+and too many while being a power of 2 (which makes for nice binary trees).
 
 ***********************************************************************
 * +--------+-------+-------+-------+--------+-------+--------+-------+
@@ -115,10 +115,10 @@ labelled branches and that would still have been proper prefix codes.
 
 ![A Prefix-Codes Tree With Random Labels](img/huffman-tree-random-labels.png)
 
-The conclusion to all this is that branch labels don't matter. But then what does? Path lengths do!
-We only need to know what is the length of each code and we can rebuild proper prefix codes. If we
-add the condition that at equal code lengths codes must be sorted in symbol order, then we have
-what is called the canonical representation.
+The conclusion to all this is that **branch labels don't matter**. But then what does? **Path
+lengths do**! We only need to know what is the length of each code and we can rebuild proper prefix
+codes. If we add the condition that codes of equal lengths must be sorted in symbol order, then we
+have what is called the canonical representation.
 
 This representation has one huge advantage: the only information that needs to be shared between the
 encoder and the decoder is each symbol's code length.
@@ -172,8 +172,8 @@ rebuild a tree from the lengths but there's a better way to decode...
 Table-Based Decoding
 --------------------
 
-The main issue is that we don't know know what is a symbol's length prior to reading it. Here are
-the canonical codes for each of the symbols in our example:
+The main issue is that we don't know what is a symbol's length prior to reading it. Here are the
+canonical codes for each of the symbols in our example:
 
 Symbol |      Code
 -------|----------:
@@ -194,33 +194,33 @@ Symbol |      Code
  'J':  | `1111110`
  'K':  | `1111111`
 
-The codes are in ascending order, but not only that: all codes of a given length are consecutive.
+The codes are in ascending order, but not only that: **all codes of a given length are consecutive**.
 We can even go further, if we align codes left and pad them with zeroes they remain in ascending
 order.
 
-Symbol | Code                        | Index
--------|-----------------------------|------:
- 'A':  | <code><b>000</b><u>0000</u></code> |    0
- 'E':  | <code><b>001</b><u>0000</u></code> |    1
- 'I':  | <code><b>010</b><u>0000</u></code> |    2
- 'N':  | <code><b>011</b><u>0000</u></code> |    3
- 'O':  | <code><b>100</b><u>0000</u></code> |    4
- 'C':  | <code><b>1010</b><u>000</u></code> |    5
- 'D':  | <code><b>1011</b><u>000</u></code> |    6
- 'L':  | <code><b>1100</b><u>000</u></code> |    7
- 'B':  | <code><b>11010</b><u>00</u></code> |    8
- 'G':  | <code><b>11011</b><u>00</u></code> |    9
- 'H':  | <code><b>11100</b><u>00</u></code> |   10
- 'M':  | <code><b>11101</b><u>00</u></code> |   11
- 'P':  | <code><b>11110</b><u>00</u></code> |   12
- 'F':  | <code><b>111110</b><u>0</u></code> |   13
- 'J':  | <code><b>1111110</b><u></u></code> |   14
- 'K':  | <code><b>1111111</b><u></u></code> |   15
+ Index | Symbol | Code
+-------|--------|------------------------------------
+    0  |  'A':  | <code><b>000</b><u>0000</u></code>
+    1  |  'E':  | <code><b>001</b><u>0000</u></code>
+    2  |  'I':  | <code><b>010</b><u>0000</u></code>
+    3  |  'N':  | <code><b>011</b><u>0000</u></code>
+    4  |  'O':  | <code><b>100</b><u>0000</u></code>
+    5  |  'C':  | <code><b>1010</b><u>000</u></code>
+    6  |  'D':  | <code><b>1011</b><u>000</u></code>
+    7  |  'L':  | <code><b>1100</b><u>000</u></code>
+    8  |  'B':  | <code><b>11010</b><u>00</u></code>
+    9  |  'G':  | <code><b>11011</b><u>00</u></code>
+   10  |  'H':  | <code><b>11100</b><u>00</u></code>
+   11  |  'M':  | <code><b>11101</b><u>00</u></code>
+   12  |  'P':  | <code><b>11110</b><u>00</u></code>
+   13  |  'F':  | <code><b>111110</b><u>0</u></code>
+   14  |  'J':  | <code><b>1111110</b><u></u></code>
+   15  |  'K':  | <code><b>1111111</b><u></u></code>
 
 We can use this observation to build a table of the first code of each length. Using such a table
 we can read _N_ bits (7 in our example, but most likely 32 or 64) and, by iterating over the table's
-entries, figure out what is a symbol's length. This same table can also give the index (in the table
-of symbols ordered by length) of the first symbol of that length.
+entries, figure out what is a symbol's length. This same table can also give the index (in the above
+table) of the first symbol of that length.
 
 Length | First Code | Index
 -------|------------|------:
@@ -253,9 +253,9 @@ Merging two sorted collections can be done with linear time complexity. As we've
 are already sorted so we only need to sort leaves and this is really easy (and fast) to do. It can
 even be done in linear time too using [radix sort](https://en.wikipedia.org/wiki/Radix_sort).
 
-Here's how the algorithm works. We start with an array of 2N-1 slots, the lower N slots are filled
-with leaves, sorted in order of ascending weights. At each iteration we're going to fill one of the
-remaining slots in the array: the nodes.
+Here's how the algorithm works. We start with an array of _2N-1_ slots, the lower _N_ slots are
+filled with leaves, sorted in order of ascending weights. At each iteration we're going to fill one
+of the remaining slots in the array: the nodes.
 
 ![Initial state: only leaves](img/fast-huffman-step0.png)
 
@@ -277,7 +277,7 @@ Fast Length Retrieval
 ---------------------
 
 To compute the symbol's length we need to recurse the tree. This is not really complicated nor
-expensive but there's a better and faster way to do it. Until now when we built a node we had it
+expensive but there's an easier and faster way to do it. Until now when we built a node we had it
 point to its children:
 
 ![Nodes point to their children](img/fast-huffman-end.png)
@@ -301,19 +301,20 @@ In-Place Huffman
 ----------------
 
 If we take an even closer look at the algorithm, we notice that leaves are always consumed at least
-as fast as nodes are created (this is not immediately obvious but trust me, it's true). It is
-therefore possible to use an array of only N slots if we overwrite consumed leaves with nodes.
+as fast as nodes are created (this is not immediately obvious but, trust me, it's true). It is
+therefore possible to use an array of only _N_ slots if we overwrite consumed leaves with nodes.
 But then how do we compute the lengths of the leaves if we no longer have them?
 
-In their [1995 paper](Alistair Moffat and Kyrki Katajainen), Moffat and Katajainen describe the
-solution. We have all the information we need to recover how many leaves there are at each depth:
+In their [1995 paper](https://people.eng.unimelb.edu.au/ammoffat/abstracts/mk95wads.html), Moffat
+and Katajainen describe the solution. We have all the information we need to recover how many leaves
+there are at each depth:
  - If there are _N_ nodes at level _D-1_, then level _D_ contains _2N_ items.
  - The number of leaves at any level is the number of items minus the number of nodes at that level.
  - Before being overwritten, leaves were in ascending weight order: that's the same as descending
    depth order.
 
 !!! Note
-    Although this algorithm is very smart and quite fast, I mostly mention it for the sake of
+    Although this algorithm is very smart and quite fast too, I mostly mention it for the sake of
     completeness as the solution detailed earlier is both easier and faster (on 256 symbols at
     least, things could be vastly different when dealing with a huge number of symbols).
 
@@ -323,7 +324,7 @@ Misc. Optimizations
 ### Item Footprint
 
 
-An item should look something like that:
+An item looks something like that:
 ~~~~~~~~~~~~~~~~~~~~~~c++
 struct HuffmanTreeItem
 {
@@ -337,6 +338,7 @@ But, pay attention to how the algorithm works:
  - Once we set an item's parent we will no longer use its weight.
  - Once we set an item's length we will no longer use its parent.
 So, we only need one of the `struct`'s members at a time: we can therefore turn it into a `union`!
+That's three times smaller and does not impair legibility.
 
 ~~~~~~~~~~~~~~~~~~~~~~c++
 union HuffmanTreeItem
@@ -412,6 +414,11 @@ enters the game. It states that the following condition must be true for proper 
 
 $$\sum_{s\in symbols}^{} 2^{-length(s)} \le 1$$
 
+!!! Warning
+    One of the consequences of the Kraft-McMillan inequality is that there is a lower limit to the
+    length of prefix codes. This limit is, of course, that we must have enough bits to encode all
+    the symbols: $ \left\lceil log_2 N \right\rceil $
+
 Here's how to compute the sum using fixed-point math. This is very similar to how canonical prefix codes
 are computed from lengths, and this is another case of non-coincidence.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c++
@@ -421,8 +428,8 @@ for (size_t symbol=0; symbol!=symbolCount; ++symbol)
     kraftSum += kraftOne >> lengths[symbol];
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Fast Length-Limiting
---------------------
+Simple Length-Limiting
+----------------------
 
 Just clamp all the lengths to your desired maximum length. It is now very likely that the Kraft-McMillan
 inequality is violated. Let's fix it by adding 1 to the lengths of the least frequent symbols (that
@@ -445,14 +452,14 @@ for several other length-limiting methods.
     And for shortening a code, this simplifies to:<br>
     `krafSum += (kraftOne >> oldLength);`<br>
 
-Fast and Smart Length-Limiting
-------------------------------
+Smarter Length-Limiting
+-----------------------
 
 Render to Caesar what is Caesar's: I first read about this method on [Charles Bloom's blog](http://cbloomrants.blogspot.com/2018/04/engel-coding-and-length-limited-huffman.html).
 Charles Bloom, in turn, attributes it to [Joen Engel](https://github.com/JoernEngel/joernblog/blob/master/engel_coding.md).
 
-The starting point is the same as the previous method: compute Huffman lengths and clamp them,
-we now again need to fix the Kraft-McMillan inequality. However, we're going to select which
+The starting point is the same as the previous method: compute Huffman lengths and clamp them.
+We now again need to fix the Kraft-McMillan inequality. However, we're going to select which
 codes we lengthen and shorten (yes, shorten) with more care. We have two criteria for this:
  1. At each iteration we want the Kraft-McMillan sum to get closer to 1. We don't care whether
     we end up above or below that target. All that matters, is getting closer to it.
@@ -491,9 +498,9 @@ The Principle
 
 We have already seen a table-based decoding technique, but we still had to iterate on that table to
 find a code's length. Now that we a have the guarantee that codes cannot exceed a given length, we
-can devise a much faster way to decode our prefix-codes: a lookup table. Let _M_ be the maximum
-length, we always read _M_ bits and use them to look in a table of <i>2<sup>M</sup></i> entries
-that tells us what is the corresponding symbol and what is its length.
+can devise a much faster way to decode our prefix-codes: a lookup table. Let _L_ be the length
+limit, we then always read _L_ bits and use them to look in a table of <i>2<sup>L</sup></i> entries
+that tells us directly what is the corresponding symbol and what is its length.
 
 Such a table would have more entries for short symbols than for longer ones. Still using our
 same example data set, whose maximum length is 7, the 3-bit codes would have 16 entries each
@@ -566,23 +573,9 @@ codes with one entry each. The table would look like that:
 Which Table Size?
 -----------------
 
-In practice, of course, the decoding table will be much larger than the one above because we would
-be dealing with bytes (i.e. 256 possible symbols). On one hand, limiting the lengths of codes
-negativey impacts the compression ratio so we would like to keep them as long as possible; on the
-other hand, long codes require large decoding tables so we would like to make them as short as
-possible. We need to find a tradeoff between those two goals, let's look at which limits are used
-in popular data formats.
-
-JPEG has a 16-bit limit and zip has a 15-bit one. At 2 bytes per entry, they respectively require
-128 KiB and 64 KiB decoding tables. JPEG dates from 1991 whereas zip dates from 1989, a time when
-CPU cache was not as crucial as it is now and was anyway too small to hold an entire decoding table
-(1989's Intel i486 only had 8 KiB of cache). Recent processors (as of 2024), however, have between
-32 KiB and 64 KiB of L1 data cache per core so those tables are still too large for them. And even
-without considering the cache, building a larger table requires more time, this has to be taken into
-account as well.
-
-Let's now look at a more recent format: [Zstandard uses an 11-bit limit](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#huffman-tree-description).
-The corresponding table weighs only 4 KiB: perfectly fits in the L1 cache of even low-end processors.
+The size of the decoding table is the main criterion for deciding which length limit to enforce.
+On one hand, short length limits impact the compression ratio; on the other hand long length limits
+impact performance.
 
 Here are graphs of how the compression ratio of two files from the Silesia corpus evolves as the
 length limit changes (in both cases the smart limiting algorithm was used):
@@ -590,20 +583,57 @@ length limit changes (in both cases the smart limiting algorithm was used):
 ![dickens](img/dickens.png)
 ![samba](img/samba.png)
 
+Performance-wise, there are two criteria we must look at:
+ - How long does it take to build the table?
+ - Does the table fit in the [L1 cache](https://en.wikipedia.org/wiki/CPU_cache#Multi-level_caches)?
+
+So, we need to find a good balance between table size and compression ratio. Let's look at which
+limits are used in popular data formats.
+
+### JPEG and Deflate
+
+JPEG has a [16-bit limit](https://www.w3.org/Graphics/JPEG/itu-t81.pdf#page=151) and deflate
+(i.e. zip) has a 15-bit one (see [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt), section 3.2.7).
+Those two limits are really good in terms of compression ratio, however they would result in fairly
+large decoding tables (128 KiB and 64 KiB respectively, assuming **2 bytes per entry**).
+
+These were perfectly sound decisions at the time those formats were designed (1991 and 1989
+respectively): CPU cache was not as crucial as it is now and was anyway too small to hold an entire
+flat decoding table (1989's [Intel i486](https://en.wikipedia.org/wiki/I486) only had 8 KiB of cache
+in total). So the strategy used was based on [multiple smaller tables](https://github.com/madler/zlib/blob/develop/inftrees.c).
+
+However, such length limits aren't so good for recent processors that we can safely assume to have
+at least 32 KiB of L1 data cache per core. Those caches are now large enough to hold flat decoding
+tables but still not large enough for such length limits.
+
+### Zstandard
+
+As for Zstandard, a much more recent format, its length limit is [11 bits](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#huffman-tree-description).
+The corresponding table weighs only 8 KiB (assuming **4 bytes per entry** this time, we'll see why
+[shortly](#MultiSymbolDecoding)): this perfectly fits in the L1 cache of even low-end processors
+while leaving room for other data.
+
+11 bits is a rather strict length limit without degrading compression so much that it hurts. It's
+worth noting that Zstandard only uses prefix coding for one type of data: literals, other data is
+compressed using ANS. Literals are usually not greatly compressible, so a higher length limit
+wouldn't make a big difference anyway.
+
 !!! Info
     An [11-bit limit](https://fgiesen.wordpress.com/2021/08/30/entropy-coding-in-oodle-data-huffman-coding/)
     is also used in [RAD Game Tool's Oodle compressors](https://www.radgametools.com/oodle.htm)
     because lowering the length limit has another nice property: this increases the number of
-    symbols you can provably decode without having to refill the bit buffer.
+    symbols you can provably decode [without having to refill the bit buffer](#SeveralDecodesPerRefill).
+    This probably also played a role in Zstandard's length limit decision.
 
+<a/ name="MultiSymbolDecoding">
 Multi-Symbol Decoding
 ---------------------
 
 Our most likely symbols (A, E, I, N and O) are coded on 3 bits and they account for 57.56% of all
 the symbols. The 4-bit symbols (C, D and L) account for 18.82% of all the symbols. Together, the
 3 and 4-bit symbols account for 76.38% of all the symbols. Therefore, we have a very high chance
-that when we read 7 bits to look up in the decoding table, those 7 bits contain more than one
-coded symbol.
+that as we read 7 bits to look up in the decoding table, those 7 bits contain more than one coded
+symbol.
 
 We can modify the table to tell us how many symbols the bits contain, which are those symbols and
 what is their cumulated length. Such a table, of course, has larger entries than the previous table,
@@ -677,12 +707,13 @@ of symbols).
 Decoding Even Faster
 ====================
 
-It seems that we cannot speed up decoding any more: a simple table lookup allows us to decode between
-one and three symbols. The only thing that limits the speed is the time it takes the CPU to read the
-bits, look up in the table and write the symbols. The decoding table is in the L1 cache, the bitstream
-is probably also in the cache and writing the symbols is not a dependency for the next symbol so the
-time it takes does not really matter. How can we speed it up even more?
+It seems that we have made decoding as simple as it gets: a mere table lookup allows us to decode
+between one and three symbols. The only thing that limits the speed is the time it takes the CPU to
+read the bits, look up in the table and write the symbols. The decoding table is in the L1 cache,
+the bitstream is probably also in the cache and writing the symbols is not a dependency for the
+next symbol so the time it takes does not really matter. How can we go faster?
 
+<a/ name="SeveralDecodesPerRefill">
 Several Decodes Per Refill
 --------------------------
 
@@ -690,38 +721,43 @@ When we refill our bit buffer, we can do it more than one byte at a time. We can
 machine word at each refill (32 bits on a 32-bit machine and 64 bits on a 64-bit machine), it's
 about as expensive as reading a byte after all. However, this brings two new complications:
  - The processor must support unaligned reads (not all processors do).
- - The order of the data we'll read depends on the processor's endianness (but it's usually cheap to
-   swap data's endianness)
+ - The order of the data we'll read depends on the processor's endianness (but it's usually cheap
+   to fix endianness)
 
-If, whatever the state of the bit buffer, we read 64 bits of data at each refill, we can guarantee that
-the bit buffer will always contain at least 64 bits of data after the refill. Therefore, if our length
-limit is 12 we are certain we can decode at least 5 symbols before having to refill again. We've just
-made the read dependency 5 times cheaper!
+If, whatever the state of the bit buffer, we read 64 bits of data at each refill, we can guarantee
+that the bit buffer will always contain at least 64 bits of data after the refill. Therefore, if
+our length limit is 12 we are certain we can decode at least 5 symbols before having to refill
+again. We've just made the read dependency 5 times cheaper!
+
+!!! Warning
+    Actually, as our reads are still byte-aligned we can only guarantee 64-7=57 fresh new bits at
+    each refill. With a 12-bit limit, we can therefore only have 4 guaranteed decodes per refill.
 
 Multiple Streams
 ----------------
 
-However, we still have a dependency between consecutive symbols: we don't know what are the bits of symbol
-_N_ until we know how many bits symbol _N-1_ consumes. We cannot eliminate this dependency as it is at the
-heart of prefix codes. But if we encode consecutive symbols in different bistreams we can mask that
-dependency. Say we have two bitstreams, we can encode one symbol out of two in the first bitstream and the
-other symbols in the second bistream. By doing so, symbol _N_ no longer depends on symbol _N-1_'s length
-being known but on symbol _N-2_'s. By increasing the number of streams we can mask the latencies enough to
-become a non-issue.
+However, we still have a dependency between consecutive symbols: we don't know what are the bits of
+symbol _N_ until we know how many bits symbol _N-1_ consumes. We cannot eliminate this dependency
+as it is at the heart of prefix codes. But by encoding consecutive symbols in different bistreams
+we can mask that dependency. Say we have two bitstreams, we can encode one symbol out of two in the
+first bitstream and the other symbols in the second bistream. By doing so, symbol _N_ no longer
+depends on symbol _N-1_'s length being known but on symbol _N-2_'s. By increasing the number of
+streams we can mask the latencies enough to become a non-issue.
 
 Zstandard uses [up to 4 bistreams](https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#literals_section_header)
 whereas [Oodle uses 6](https://fgiesen.wordpress.com/2023/10/29/entropy-decoding-in-oodle-data-x86-64-6-stream-huffman-decoders/).
 There is, however, a huge difference between the two approaches: Zstandard uses both the multi-stream and
 multi-symbol techniques (which is [complicated](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-5-combining.html)),
 whereas Oodle uses only the multi-stream one. The combined approach can reach a higher peak throughput
-(but this depends on the data) whereas the multi-stream-only approach has a sustained performance.
+(which depends on data) whereas the multi-stream-only approach has a sustained performance (and
+usually higher on average).
 
 
 
 References
 ==========
  - Charles Bloom, 2018.<br>
-   [Engel Coding and Length Limited Huffman Heuristic Revisited](Engel Coding and Length Limited Huffman Heuristic Revisited)
+   [Engel Coding and Length Limited Huffman Heuristic Revisited](http://cbloomrants.blogspot.com/2018/04/engel-coding-and-length-limited-huffman.html)
  - Stephan Brumme, 2021.<br>
    [Length-Limited Prefix Codes](https://create.stephan-brumme.com/length-limited-prefix-codes/)
  - Yann Collet, 2015.<br>
