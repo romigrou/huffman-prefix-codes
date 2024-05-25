@@ -158,28 +158,20 @@ const TreeItem* build_huffman_tree(TreeItem tree[2*maxSymbolCount-1], const size
     for (size_t i=0; i < usedSymbolCount-2; ++i)
     {
         ++lastNode;
-        lastNode->weight = 0;
-
-        #define HUFFMAN_PICK_CHILD(num, child) \
-        {                                      \
-            lastNode->weight += child->weight; \
-            lastNode->children[num] = child;   \
-            ++child;                           \
-        }
 
         // Select 1st child
         if (oldestUnconsumedLeaf < endOfLeaves && oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight)
-            HUFFMAN_PICK_CHILD(0, oldestUnconsumedLeaf)
+            lastNode->children[0] = oldestUnconsumedLeaf++;
         else
-            HUFFMAN_PICK_CHILD(0, oldestUnconsumedNode)
+            lastNode->children[0] = oldestUnconsumedNode++;
 
         // Select 2nd child
         if ((oldestUnconsumedLeaf < endOfLeaves && oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight) || oldestUnconsumedNode == lastNode)
-            HUFFMAN_PICK_CHILD(1, oldestUnconsumedLeaf)
+            lastNode->children[1] = oldestUnconsumedLeaf++;
         else
-            HUFFMAN_PICK_CHILD(1, oldestUnconsumedNode)
+            lastNode->children[1] = oldestUnconsumedNode++;
 
-        #undef HUFFMAN_PICK_CHILD
+        lastNode->weight = lastNode->children[0]->weight + lastNode->children[1]->weight;
     }
 
     return lastNode; // Tree root

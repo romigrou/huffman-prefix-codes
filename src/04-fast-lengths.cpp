@@ -168,28 +168,13 @@ void compute_huffman_lengths(uint8_t lengths[maxSymbolCount], const size_t weigh
     for (size_t i=0; i < usedSymbolCount-2; ++i)
     {
         ++lastNode;
-        lastNode->weight = 0;
 
-        #define HUFFMAN_PICK_CHILD(child)      \
-        {                                      \
-            lastNode->weight += child->weight; \
-            child->parent = lastNode;          \
-            ++child;                           \
-        }
+        TreeItem* child1 = (oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight) ? oldestUnconsumedLeaf++ : oldestUnconsumedNode++;
+        TreeItem* child2 = (oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight || oldestUnconsumedNode == lastNode) ? oldestUnconsumedLeaf++ : oldestUnconsumedNode++;
 
-        // Select 1st child
-        if (oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight)
-            HUFFMAN_PICK_CHILD(oldestUnconsumedLeaf)
-        else
-            HUFFMAN_PICK_CHILD(oldestUnconsumedNode)
-
-        // Select 2nd child
-        if (oldestUnconsumedLeaf->weight <= oldestUnconsumedNode->weight || oldestUnconsumedNode == lastNode)
-            HUFFMAN_PICK_CHILD(oldestUnconsumedLeaf)
-        else
-            HUFFMAN_PICK_CHILD(oldestUnconsumedNode)
-
-        #undef HUFFMAN_PICK_CHILD
+        lastNode->weight = child1->weight + child2->weight;
+        child1->parent = lastNode;
+        child2->parent = lastNode;
     }
 
     // Compute the length (i.e. depth) of each node
