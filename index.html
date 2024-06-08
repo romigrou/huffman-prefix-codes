@@ -415,8 +415,8 @@ enters the game. It states that the following condition must be true for proper 
 $$K = \sum_{s\in symbols}^{} 2^{-length(s)} \le 1$$
 
 !!! Warning
-    One of the consequences of the Kraft-McMillan inequality is that there is a lower limit to the
-    length of prefix codes. This limit is, of course, that we must have enough bits to encode all
+    One of the consequences of the Kraft-McMillan inequality is that there is a lower bound to
+    the length limit. This lower bound is, of course, that we must have enough bits to encode all
     the symbols: $ \left\lceil log_2 N \right\rceil $
 
 Here's how to compute the sum using fixed-point math. This is very similar to how canonical prefix codes
@@ -463,7 +463,7 @@ The starting point is the same as the previous method: compute Huffman lengths a
 We now again need to fix the Kraft-McMillan inequality. However, we're going to select which
 codes we lengthen and shorten (yes, shorten) with more care. We have two criteria for this:
  1. At each iteration we want the Kraft-McMillan sum to get closer to 1. We don't care whether
-    we end up above or below that target. All that matters, is getting closer to it.
+    we end up above or below that target. All that matters is getting closer to it.
  2. We use a cost function to decide which code to modify.
 
 ### The Cost Function
@@ -494,7 +494,7 @@ where:
  - _L<sub>i</sub> = newLength_ when lengthening a code (i.e. _K > 1_)
  - _L<sub>i</sub> = oldLength_ when shortening a code (i.e. _K < 1_)
 
-And, if _W<sub>i</sub>_ is a symbol's weight, |_ΔL_| is simply _W<sub>i</sub>_. Therefore, the cost function can be computed as
+Let _W<sub>i</sub>_ be a symbol's weight , then |_ΔL_| is simply _W<sub>i</sub>_. Therefore, the cost function can be computed as
 _W<sub>i</sub> / 2<sup>-L<sub>i</sub></sup>_, which simplifies to _W<sub>i</sub> × 2<sup>L<sub>i</sub></sup>_,
 which in turn yields the following remarkably cheap code:
 
@@ -750,7 +750,7 @@ It seems that we have made decoding as simple as it gets: a mere table lookup al
 between one and three symbols. The only thing that limits the speed is the time it takes the CPU to
 read the bits, look up in the table and write the symbols. The decoding table is in the L1 cache,
 the bitstream is probably also in the cache and writing the symbols is not a dependency for the
-next symbol so the time it takes does not really matter. How can we go faster?
+next symbol, so the time it takes does not really matter. How can we go faster?
 
 <a/ name="SeveralDecodesPerRefill">
 Several Decodes Per Refill
