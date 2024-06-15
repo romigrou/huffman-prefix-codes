@@ -30,6 +30,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <vector>
 
 
@@ -330,7 +331,6 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
         do
         {
             unsigned count = std::min(8u-bitBufferSize, length);
-            unsigned mask  = (1 << count) - 1;
             bitBuffer      = uint8_t((bitBuffer << count) | (code >> (codeBits-count)));
             bitBufferSize += count;
             length        -= count;
@@ -353,7 +353,7 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
 
     const Clock::time_point tDone = Clock::now();
 
-    assert(writePtr - encodedData.data() == encodedDataSize);
+    assert(size_t(writePtr - encodedData.data()) == encodedDataSize);
 
     printf("Encoding: %5.3f ms\n", to_ms(t0, tDone));
     printf("  Histogram:       %10.3f us\n", to_us(t0,            tHisto));
@@ -368,6 +368,8 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
 
 void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_t encodedDataSize)
 {
+    (void)encodedDataSize; // Only used for assert
+
     const Clock::time_point t0 = Clock::now();
 
     constexpr unsigned bitBufferCapacity = sizeof(BitBuffer) * 8;
@@ -409,6 +411,7 @@ void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_
                 break;
 
             // Read some more bits and retry
+            assert(readPtr < encodedData+encodedDataSize);
             bitBuffer     |= *readPtr++ << (bitBufferCapacity - bitBufferSize - 8);
             bitBufferSize += 8;
             assert(bitBufferSize <= bitBufferCapacity);

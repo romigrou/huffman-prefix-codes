@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.14)
 
 project(prefix-codes CXX)
 
+if (MSVC OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL MSVC)
+    add_compile_options(/W4)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-Wall)
+endif()
+
 add_library(prefix-codes STATIC
     "src/main.cpp"
     "src/utils.cpp"

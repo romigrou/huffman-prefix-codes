@@ -55,7 +55,7 @@ void print_canonical_codes(const uint8_t lengths[], size_t symbolCount)
 {
     // Sort symbols by length
     const size_t maxSymbolCount = 256;
-    uint8_t symbolsSortedByLength[maxSymbolCount];
+    uint8_t symbolsSortedByLength[maxSymbolCount] = {};
     for (size_t i=0; i<symbolCount; ++i)
         symbolsSortedByLength[i] = uint8_t(i);
     std::stable_sort(symbolsSortedByLength, symbolsSortedByLength+symbolCount, [&](size_t a, size_t b) noexcept->bool
@@ -93,11 +93,6 @@ static void print_edge(FILE* file, unsigned code, unsigned length)
     fprintf(file, "\tn%s -- n%s [label=\"%u\"];\n", as_binary(code>>1, length-1).c_str(), as_binary(code, length).c_str(), code&1);
 }
 
-
-static void print_leaf(FILE* file, unsigned symbol, unsigned code, unsigned length)
-{
-    print_edge(file, code, length);
-}
 
 void dump_canonical_tree(const char* filepath, const uint8_t lengths[], size_t symbolCount)
 {

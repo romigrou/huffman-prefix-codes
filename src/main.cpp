@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -31,28 +32,30 @@
 void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataSize);
 void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_t encodedDataSize);
 
+#if 1
 
 const unsigned defaultWeights[] =
 {
     1192, 290, 637, 475, 1566, 254, 347, 421, 1059, 28, 155, 770, 423, 934, 1005, 444
 };
 
+#else
 
-const uint64_t fibonacciWeights[] =
+// Fibonacci sequence
+const uint64_t defaultWeights[] =
 {
     // The first 16 numbers
     1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987,
     // The next 16 ones
     1597,2584,4181,6765,10946,17711,28657,46368,75025,121393,196418,317811,514229,832040,1346269,2178309,
     // The next 32 ones
-    3524578,5702887,9227465,14930352,24157817,39088169,63245986,102334155,
-    165580141,267914296,433494437,701408733,1134903170,1836311903,2971215073,4807526976,
-    7778742049,12586269025,20365011074,32951280099,53316291173,86267571272,139583862445,225851433717,
-    365435296162,591286729879,956722026041,1548008755920,2504730781961,4052739537881,6557470319842,10610209857723
+//    3524578,5702887,9227465,14930352,24157817,39088169,63245986,102334155,
+//    165580141,267914296,433494437,701408733,1134903170,1836311903,2971215073,4807526976,
+//    7778742049,12586269025,20365011074,32951280099,53316291173,86267571272,139583862445,225851433717,
+//    365435296162,591286729879,956722026041,1548008755920,2504730781961,4052739537881,6557470319842,10610209857723
 };
 
-
-//#define defaultWeights fibonacciWeights
+#endif
 
 
 
@@ -60,7 +63,7 @@ int main(int argc, char* argv[])
 {
     std::vector<uint8_t> data;
 
-    if (argc > 1u)
+    if (argc > 1)
     {
         FILE* file = fopen(argv[1], "rb");
         if (file == nullptr)
@@ -68,12 +71,24 @@ int main(int argc, char* argv[])
             fprintf(stderr, "Failed to open file \"%s\" for reading\n", argv[1]);
             return EXIT_FAILURE;
         }
+
         fseek(file, 0, SEEK_END);
         int size = ftell(file);
+        if (size < 0)
+        {
+            fprintf(stderr, "Failed to retrieve the size of file \"%s\"\n", argv[1]);
+            return EXIT_FAILURE;
+        }
+
         data.resize(size);
 
         fseek(file, 0, SEEK_SET);
-        fread(data.data(), 1, size, file);
+        if (fread(data.data(), 1, size, file) != size_t(size))
+        {
+            fprintf(stderr, "Failed to read %d bytes from file \"%s\"\n", size, argv[1]);
+            return EXIT_FAILURE;
+        }
+
         fclose(file);
     }
     else
