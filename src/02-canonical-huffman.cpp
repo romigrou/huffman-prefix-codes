@@ -317,7 +317,7 @@ void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_
         {
             while (length < bitBufferSize && bitBuffer >= decodingTable[length].firstCode)
                 ++length;
-            if (length < bitBufferSize)
+            if (length <= bitBufferSize)
                 break;
 
             // Read some more bits and retry
