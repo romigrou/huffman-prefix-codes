@@ -433,7 +433,7 @@ Simple Length-Limiting
 ----------------------
 
 Just clamp all the lengths to your desired maximum length. It is now very likely that the Kraft-McMillan
-inequality is violated. Let's fix it by adding 1 to the lengths of the least frequent symbols (that
+inequality is violated. Let's fix it by increasing the lengths of the least frequent symbols (that
 haven't reached the max length yet, of course) until the inequality is fixed. Once this is done, if
 the Kraft-McMillan sum is not equal to 1, this means that we can re-shorten a few of the symbols we
 have just lengthened: let's do this from the most frequent ones first and stop before we would violate
@@ -507,9 +507,9 @@ cost = Wi << Li;
     by considering only one symbol per length: the one with the smallest weight when _K > 1_ and
     the one with the biggest weight when _K < 1_.
 
-!!! Warning
-    Just in case this method would not converge, we can always use the previous simple
-    length-limiting method as a fallback to finish the job.
+!!! Error
+    There is a risk this method does not converge. In such a case, we can always resort to the
+    previous simple length-limiting method to restore the Kraft-McMillan inequality.
 
 ### Efficiency
 
