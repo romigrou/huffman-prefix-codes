@@ -11,6 +11,7 @@ improves upon the previous one:
   3. [Build the Huffman tree with linear time complexity](src/03-fast-huffman.cpp)
   4. [Compute code lengths faster by avoiding to recurse the Huffman tree](src/04-fast-lengths.cpp)
   5. [Limit lengths with a simple algorithm](src/05-dumb-length-limiting.cpp)
+  6. [Limit lengths with a smart algorithm](src/06-smart-length-limiting.cpp)
 
 **Note**: the code is this repository was written so as to remain as legible as possible,
           it is not meant to be the most optimized implementation around

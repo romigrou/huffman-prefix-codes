@@ -22,7 +22,7 @@
 
 /*
  * Changes from previous file:
- *  - Length limiting using a simple algorithm
+ *  - Length limiting using a smarter algorithm
  */
 
 
@@ -194,7 +194,7 @@ void compute_huffman_lengths(uint8_t lengths[maxSymbolCount], const size_t weigh
 }
 
 
-void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedByWeight[maxSymbolCount], uint8_t lengthLimit) noexcept
+void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedByWeight[maxSymbolCount], const size_t weights[maxSymbolCount], uint8_t lengthLimit) noexcept
 {
     // Skip unused symbols
     size_t unusedSymbolCount = 0;
@@ -202,7 +202,7 @@ void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedB
         ++unusedSymbolCount;
 
     // Clamp lengths and compute the Kraft-McMillan sum
-    using Kraft = uint32_t;
+    using Kraft = int32_t; // Must be signed because distances can be negative
     assert(lengthLimit < std::numeric_limits<Kraft>::digits); // Otherwise overflow will occur
     const Kraft kraftOne = Kraft(1) << lengthLimit;
     Kraft kraftSum = 0;
@@ -218,13 +218,106 @@ void limit_lengths(uint8_t lengths[maxSymbolCount], const uint8_t symbolsSortedB
     if (kraftSum <= kraftOne)
         return;
 
-    // Skip symbols whose length is already at the limit
-    size_t i = unusedSymbolCount;
-    while (lengths[symbolsSortedByWeight[i]] == lengthLimit)
-        ++i;
-    const size_t firstBelowLimit = i;
+    // 64 bits is the safe option for the ratio. 32 bits could be sufficient but this depends on
+    // both the length limit and the data size. If you process data in small enough chunks, you can
+    // guarantee that the weight will not exceed a given value. For example, with a length limit of
+    // 12 the largest weight is 2^20-1, which means that data size cannot exceed 1 MiB.
+    using Ratio = uint64_t;
+    const size_t maxWeight = (size_t(1) << (std::numeric_limits<Ratio>::digits - lengthLimit)) - 1;
+    (void)maxWeight; // Only used for assert
+    assert(weights[symbolsSortedByWeight[maxSymbolCount-1]] <= maxWeight);
+
+    // Count the number of occurrences of each length
+    uint8_t lengthsCounts[32] = {};
+    for (size_t i=unusedSymbolCount; i<maxSymbolCount; ++i)
+    {
+        const uint8_t symbol = symbolsSortedByWeight[i];
+        lengthsCounts[lengths[symbol]]++;
+    }
+
+    Kraft distance = kraftSum - kraftOne;
+    do
+    {
+        if (distance > 0)
+        {
+            // Find best symbol to lengthen.
+            // We only need to check the first one of each length (i.e. the one with the smallest weight)
+            size_t  bestIndex = maxSymbolCount;
+            Ratio   bestRatio = std::numeric_limits<Ratio>::max();
+            size_t  index     = unusedSymbolCount + lengthsCounts[lengthLimit]; // Skip symbols that cannot be lengthened
+            while (index < maxSymbolCount)
+            {
+                uint8_t symbol  = symbolsSortedByWeight[index];
+                uint8_t length  = lengths[symbol];
+                assert(length < lengthLimit);
+                size_t  weight  = weights[symbol];
+                Ratio   ratio   = Ratio(weight) << (length+1);
+                Kraft   newDist = distance - (kraftOne >> (length+1));
+                if (ratio < bestRatio && abs(newDist) <= distance)
+                {
+                    bestIndex = index;
+                    bestRatio = ratio;
+                }
+
+                index += lengthsCounts[length]; // Skip other symbols of same length
+            }
+
+            if (bestIndex == maxSymbolCount) // Couldn't find any symbol to lengthen
+                break;
+
+            uint8_t bestSymbol = symbolsSortedByWeight[bestIndex];
+            uint8_t newLength  = ++lengths[bestSymbol];
+            assert(newLength <= lengthLimit);
+            kraftSum -= kraftOne >> newLength;
+            distance -= kraftOne >> newLength;
+            lengthsCounts[newLength-1]--;
+            lengthsCounts[newLength]++;
+        }
+        else
+        {
+            // Find best symbol to shorten.
+            // We only need to check the last one of each length (i.e. the one with the biggest weight)
+            size_t bestIndex = maxSymbolCount;
+            Ratio  bestRatio = 0;
+            int    index     = maxSymbolCount - 1 - lengthsCounts[1]; // Skip symbols that cannot be shortened
+            while (index >= int(unusedSymbolCount))
+            {
+                uint8_t symbol   = symbolsSortedByWeight[index];
+                uint8_t length   = lengths[symbol];
+                assert(length > 1u);
+                size_t  weight   = weights[symbol];
+                Ratio   ratio    = Ratio(weight) << length;
+                Kraft   newDist  = distance + (kraftOne >> length);
+                if (ratio > bestRatio && abs(newDist) < -distance)
+                {
+                    bestIndex = index;
+                    bestRatio = ratio;
+                }
+
+                index -= lengthsCounts[length]; // Skip other symbols of same length
+            }
+
+            if (bestIndex == maxSymbolCount) // Couldn't find any symbol to lengthen
+                break;
+
+            uint8_t bestSymbol = symbolsSortedByWeight[bestIndex];
+            uint8_t oldLength  = lengths[bestSymbol]--;
+            assert(oldLength > 1u);
+            kraftSum += kraftOne >> oldLength;
+            distance += kraftOne >> oldLength;
+            lengthsCounts[oldLength]--;
+            lengthsCounts[oldLength-1]++;
+        }
+    }
+    while (distance != 0);
+
+    // Are we done? If not we continue with the dumb limiting algorithm to fix things
+    if (kraftSum <= kraftOne)
+        return;
 
     // Lengthen symbols until Kraft inequality is fixed
+    const size_t firstBelowLimit = unusedSymbolCount + lengthsCounts[lengthLimit];
+    size_t i= firstBelowLimit;
     do
     {
         uint8_t length = ++lengths[symbolsSortedByWeight[i++]];
@@ -349,7 +442,7 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
 
     // Apply the length limit
     const unsigned lengthLimit = 12;
-    limit_lengths(lengths, symbolsSortedByWeight, lengthLimit);
+    limit_lengths(lengths, symbolsSortedByWeight, weights, lengthLimit);
     const Clock::time_point tLimit = Clock::now();
 
     // Sort symbols by length
