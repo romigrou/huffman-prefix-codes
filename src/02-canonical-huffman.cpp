@@ -271,7 +271,7 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
     printf("  Compute lengths: %10.3f us\n", to_us(tHuffman,      tLengths));
     printf("  Sort by length:  %10.3f us\n", to_us(tLengths,      tSortByLength));
     printf("  Compute codes:   %10.3f us\n", to_us(tSortByLength, tCodes));
-    printf("  Encoding itself: %10.3f us\n", to_us(tCodes,        tDone));
+    printf("  Encoding loop:   %10.3f us\n", to_us(tCodes,        tDone));
     printf("\n");
 }
 
@@ -342,9 +342,9 @@ void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_
     const Clock::time_point tDone = Clock::now();
 
     printf("Decoding: %5.3f ms\n", to_ms(t0, tDone));
-    printf("  Sort by length:  %10.3f us\n", to_us(t0,            tSortByLength));
-    printf("  Compute codes:   %10.3f us\n", to_us(tSortByLength, tCodes));
-    printf("  Build table:     %10.3f us\n", to_us(tCodes,        tTable));
-    printf("  Decoding itself: %10.3f us\n", to_us(tTable,        tDone));
+    printf("  Sort by length: %10.3f us\n", to_us(t0,            tSortByLength));
+    printf("  Compute codes:  %10.3f us\n", to_us(tSortByLength, tCodes));
+    printf("  Build table:    %10.3f us\n", to_us(tCodes,        tTable));
+    printf("  Decoding loop:  %10.3f us\n", to_us(tTable,        tDone));
     printf("\n");
 }

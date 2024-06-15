@@ -188,10 +188,10 @@ void encode(std::vector<uint8_t>& encodedData, const uint8_t* data, size_t dataS
     assert(size_t(writePtr - encodedData.data()) == encodedDataSize);
 
     printf("Encoding: %5.3f ms\n", to_ms(t0, tDone));
-    printf("  Histogram:       %10.3f us\n", to_us(t0,       tHisto));
-    printf("  Huffman:         %10.3f us\n", to_us(tHisto,   tHuffman));
-    printf("  Compute codes:   %10.3f us\n", to_us(tHuffman, tCodes));
-    printf("  Encoding itself: %10.3f us\n", to_us(tCodes,   tDone));
+    printf("  Histogram:     %10.3f us\n", to_us(t0,       tHisto));
+    printf("  Huffman:       %10.3f us\n", to_us(tHisto,   tHuffman));
+    printf("  Compute codes: %10.3f us\n", to_us(tHuffman, tCodes));
+    printf("  Encoding loop: %10.3f us\n", to_us(tCodes,   tDone));
     printf("\n");
 }
 
@@ -242,7 +242,7 @@ void decode(std::vector<uint8_t>& decodedData, const uint8_t* encodedData, size_
     const Clock::time_point tDone = Clock::now();
 
     printf("Decoding: %5.3f ms\n", to_ms(t0, tDone));
-    printf("  Huffman:         %10.3f us\n", to_us(t0, tHuffman));
-    printf("  Decoding itself: %10.3f us\n", to_us(tHuffman, tDone));
+    printf("  Huffman:       %10.3f us\n", to_us(t0, tHuffman));
+    printf("  Decoding loop: %10.3f us\n", to_us(tHuffman, tDone));
     printf("\n");
 }
