@@ -25,9 +25,9 @@ is written in English: the most likely symbols are letters, lowercase ones being
 uppercase ones and among letters [some are more frequent than others](https://www3.nd.edu/~busiforc/handouts/cryptography/letterfrequencies.html).
 
 It's easy to understand that this coding is inefficient: we should give more frequent symbols shorter
-codes and, in compensation, less frequent symbols would receive longer codes. Shannon's entropy law states
-that each symbol can optimally be encoded on <i>-log₂ p(s)</i> bits where <i>p(s)</i> is the symbol's
-probability.
+codes and, in compensation, less frequent symbols would receive longer codes. Shannon's entropy law
+states that each symbol can optimally be encoded on <i>-log<sub>2</sub> p(s)</i> bits where _p(s)_
+is the symbol's probability.
 
 There are many codings that try to get approach Shannon's entropy, [arithmetic (or range) coding](https://en.wikipedia.org/wiki/Arithmetic_coding)
 being the one that is closest to that theoretical optimum. [ANS (Asymmetric Numeral Systems)](https://en.wikipedia.org/wiki/Asymmetric_numeral_systems)
@@ -86,9 +86,9 @@ complexity.
 Example Data
 ============
 
-For examples, I will use the following 16 symbols with the below probabilities in pretty much the rest
-of this article. Why 16 symbols? For no particular reason other than being a good balance between too few
-and too many while being a power of 2 (which makes for nice binary trees).
+I will use the following 16 symbols with the below probabilities in examples throughout the rest
+of this article. Why 16 symbols? For no particular reason other than being a good balance between
+too few and too many while being a power of 2 (which makes for nice binary trees).
 
 ***********************************************************************
 * +--------+-------+-------+-------+--------+-------+--------+-------+
@@ -117,13 +117,15 @@ labelled branches and that would still have been proper prefix codes.
 
 The conclusion to all this is that **branch labels don't matter**. But then what does? **Path
 lengths do**! We only need to know what is the length of each code and we can rebuild proper prefix
-codes. If we add the condition that codes of equal lengths must be sorted in symbol order, then we
-have what is called the canonical representation.
+codes. By adding the following two rules, we obtain what is called the canonical representation:
+  - Shorter codes must come before longer ones in [lexicographic order](https://en.wikipedia.org/wiki/Lexicographic_order)
+  - Codes of equal length must be consecutive and sorted in symbol order
 
 This representation has one huge advantage: the only information that needs to be shared between the
 encoder and the decoder is each symbol's code length.
 
-Rebuilding the codes from the lengths happens to be really easy:
+Rebuilding the codes from the lengths happens to be really easy. The following snippet generates the
+codes in lexicographic order:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c++
 unsigned nextCode   = 0;
@@ -148,7 +150,7 @@ Encoding
 
 Encoding is trivial: simply fill a lookup table with each symbol's code and you're good to go.
 You must however pay attention to bit ordering: canonical codes as implemented above are in
-MSB-first order (i.e. the first segment of the path from the root is the most-significant bit). If
+MSB-first order (i.e. the first segment of the path from the root is the most significant bit). If
 you need an LSB-first code, the easiest really is to just reverse the bits.
 
 !!! Note
@@ -172,8 +174,9 @@ rebuild a tree from the lengths but there's a better way to decode...
 Table-Based Decoding
 --------------------
 
-The main issue is that we don't know what is a symbol's length prior to reading it. Here are the
-canonical codes for each of the symbols in our example:
+The main issue we face is that we don't know what is a symbol's length prior to reading it.
+Fortunately, we can figure it out. Here are the canonical codes, in lexicographic order, for each
+of the symbols in our example:
 
 Symbol |      Code
 -------|----------:
@@ -194,33 +197,35 @@ Symbol |      Code
  'J':  | `1111110`
  'K':  | `1111111`
 
-The codes are in ascending order, but not only that: **all codes of a given length are consecutive**.
-We can even go further, if we align codes left and pad them with zeroes they remain in ascending
-order.
+A nice property of the lexicographic order is that we can left-align codes and pad them with zeroes without
+modifying the order. Let's give this a try:
 
- Index | Symbol | Code
--------|--------|------------------------------------
-    0  |  'A':  | <code><b>000</b><u>0000</u></code>
-    1  |  'E':  | <code><b>001</b><u>0000</u></code>
-    2  |  'I':  | <code><b>010</b><u>0000</u></code>
-    3  |  'N':  | <code><b>011</b><u>0000</u></code>
-    4  |  'O':  | <code><b>100</b><u>0000</u></code>
-    5  |  'C':  | <code><b>1010</b><u>000</u></code>
-    6  |  'D':  | <code><b>1011</b><u>000</u></code>
-    7  |  'L':  | <code><b>1100</b><u>000</u></code>
-    8  |  'B':  | <code><b>11010</b><u>00</u></code>
-    9  |  'G':  | <code><b>11011</b><u>00</u></code>
-   10  |  'H':  | <code><b>11100</b><u>00</u></code>
-   11  |  'M':  | <code><b>11101</b><u>00</u></code>
-   12  |  'P':  | <code><b>11110</b><u>00</u></code>
-   13  |  'F':  | <code><b>111110</b><u>0</u></code>
-   14  |  'J':  | <code><b>1111110</b><u></u></code>
-   15  |  'K':  | <code><b>1111111</b><u></u></code>
+ Index | Symbol | Code                               | Length
+-------|--------|------------------------------------|--------
+    0  |  'A':  | <code><b>000</b><u>0000</u></code> | 3
+    1  |  'E':  | <code><b>001</b><u>0000</u></code> | 3
+    2  |  'I':  | <code><b>010</b><u>0000</u></code> | 3
+    3  |  'N':  | <code><b>011</b><u>0000</u></code> | 3
+    4  |  'O':  | <code><b>100</b><u>0000</u></code> | 3
+    5  |  'C':  | <code><b>1010</b><u>000</u></code> | 4
+    6  |  'D':  | <code><b>1011</b><u>000</u></code> | 4
+    7  |  'L':  | <code><b>1100</b><u>000</u></code> | 4
+    8  |  'B':  | <code><b>11010</b><u>00</u></code> | 5
+    9  |  'G':  | <code><b>11011</b><u>00</u></code> | 5
+   10  |  'H':  | <code><b>11100</b><u>00</u></code> | 5
+   11  |  'M':  | <code><b>11101</b><u>00</u></code> | 5
+   12  |  'P':  | <code><b>11110</b><u>00</u></code> | 5
+   13  |  'F':  | <code><b>111110</b><u>0</u></code> | 6
+   14  |  'J':  | <code><b>1111110</b><u></u></code> | 7
+   15  |  'K':  | <code><b>1111111</b><u></u></code> | 7
 
-We can use this observation to build a table of the first code of each length. Using such a table
-we can read _N_ bits (7 in our example, but most likely 32 or 64) and, by iterating over the table's
-entries, figure out what is a symbol's length. This same table can also give the index (in the above
-table) of the first symbol of that length.
+We can now systematically read _N_ bits (7 in our case) and scan the table to find which is our code:
+it's the one right before the first entry greater than the bits we read. Say we read the following
+bits: `1110110`, the first entry greater than those bits is entry #12 (`1111000`), therefore our code
+is the one in entry #11: it is 5-bit long and the corresponding symbol is `'M'`.
+
+But we can simplify this even further because we know that all codes of a given length are
+consecutive, we therefore only need to know which is the first code of each length.
 
 Length | First Code | Index
 -------|------------|------:
@@ -237,6 +242,21 @@ Length | First Code | Index
     Entries that correspond to unused lengths should have the same content as the next valid entry.
     Doing so avoids having to treat them as special cases. Such is the case here for the first
     three entries that have the same content as entry #3.
+
+We scan the table using the same stopping condition as before. The code's length is simply the
+entry's number; the symbol is given by the corresponding index + the difference between the current
+code and the entry's code.
+
+Using the same example as before (`1110110`) we now stop at entry #6, the code is therefore 5-bit
+long. Let's now subtract the entry's code's top 5 bits (`11010`) from our current top 5 bits
+(`11101`), that's `29-26=3` in decimal. The symbol we're looking for is therefore the one at the
+index indicating in entry #5 plus the difference we've just computed: `8+3=11`, we find that the
+symbol is `'M`', as expected.
+
+In this example, the time saved by scanning a smaller table may not seem like much, but in real-life
+cases the full table will contain several hundreds of entries (the number of symbols) whereas the
+small one will have at most a couple dozens (the maximum length).
+
 
 Length Computation Optimizations
 ================================
@@ -334,7 +354,7 @@ struct HuffmanTreeItem
 };
 ~~~~~~~~~~~~~~~~~~~~~~
 
-But, pay attention to how the algorithm works:
+But pay attention to how the algorithm works:
  - Once we set an item's parent we will no longer use its weight.
  - Once we set an item's length we will no longer use its parent.
 So, we only need one of the `struct`'s members at a time: we can therefore turn it into a `union`!
@@ -429,7 +449,7 @@ for (size_t symbol=0; symbol!=symbolCount; ++symbol)
     kraftSum += kraftOne >> lengths[symbol];
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Simple Length-Limiting
+Simple Length Limiting
 ----------------------
 
 Just clamp all the lengths to your desired maximum length. It is now very likely that the Kraft-McMillan
@@ -452,7 +472,7 @@ for several other length-limiting methods.
     For shortening a code, this simplifies to: _K = K + 2<sup>-oldLength</sup>_<br>
     Which in code becomes: `krafSum += (kraftOne >> oldLength);`
 
-Smarter Length-Limiting
+Smarter Length Limiting
 -----------------------
 
 ### The Principle
