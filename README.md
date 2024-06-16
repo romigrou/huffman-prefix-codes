@@ -1,7 +1,7 @@
-Prefix-Codes
-============
+Huffman and Prefix-Codes
+========================
 
-This repository contains both the source code for the page [The (Complete?) Guide to Huffman and Prefix Codes](https://romigrou.github.io/prefix-codes/)
+This repository contains both the source code for the page [The (Complete?) Guide to Huffman and Prefix Codes](https://romigrou.github.io/huffman-prefix-codes/)
 and its companion example implementations.
 
 Those example implementations start from the easiest one and each incrementally
