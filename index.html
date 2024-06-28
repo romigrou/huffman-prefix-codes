@@ -29,7 +29,7 @@ codes and, in compensation, less frequent symbols would receive longer codes. Sh
 states that each symbol can optimally be encoded on <i>-log<sub>2</sub> p(s)</i> bits where _p(s)_
 is the symbol's probability.
 
-There are many codings that try to get approach Shannon's entropy, [arithmetic (or range) coding](https://en.wikipedia.org/wiki/Arithmetic_coding)
+There are many codings that try to approach Shannon's entropy, [arithmetic (or range) coding](https://en.wikipedia.org/wiki/Arithmetic_coding)
 being the one that is closest to that theoretical optimum. [ANS (Asymmetric Numeral Systems)](https://en.wikipedia.org/wiki/Asymmetric_numeral_systems)
 is slightly less efficient while being much faster. Huffman coding, while not as efficient as the
 other two, is optimal in its own kind of way.
@@ -60,8 +60,8 @@ Huffman's Algorithm
 ===================
 
 Huffman's algorithm is a way to generate prefix codes in an **optimal** manner: the codes will be
-as close as possible to Shannon's entropy as whole-bit codes can be. To beat Huffman codes you need
-to be able to encode with sub-bit precision (which both arithmetic coding and ANS achieve).
+as close as possible to Shannon's entropy as whole-bit codes can be. To beat Huffman codes you must
+encode with sub-bit precision (which both arithmetic coding and ANS allow).
 
 !!! Warning
     I will henceforth use the term <i>weight</i> instead of <i>probability</i> but this really is the
@@ -220,11 +220,11 @@ modifying the order. Let's give this a try:
    15  |  'K':  | <code><b>1111111</b><u></u></code> | 7
 
 We can now systematically read _N_ bits (7 in our case) and scan the table to find which is our code:
-it's the one right before the first entry greater than the bits we read. Say we read the following
+it's the one just before the first entry greater than the bits we read. Say we read the following
 bits: `1110110`, the first entry greater than those bits is entry #12 (`1111000`), therefore our code
 is the one in entry #11: it is 5-bit long and the corresponding symbol is `'M'`.
 
-But we can simplify this even further because we know that all codes of a given length are
+We can simplify this even further because we know that all codes of a given length are
 consecutive, we therefore only need to know which is the first code of each length.
 
 Length | First Code | Index
@@ -243,15 +243,15 @@ Length | First Code | Index
     Doing so avoids having to treat them as special cases. Such is the case here for the first
     three entries that have the same content as entry #3.
 
-We scan the table using the same stopping condition as before. The code's length is simply the
-entry's number; the symbol is given by the corresponding index + the difference between the current
-code and the entry's code.
+We scan the table using the same rule as before. The code's length is now simply the entry's number;
+the symbol is given by the corresponding index + the difference between the current code and the
+entry's code.
 
-Using the same example as before (`1110110`) we now stop at entry #6, the code is therefore 5-bit
-long. Let's now subtract the entry's code's top 5 bits (`11010`) from our current top 5 bits
-(`11101`), that's `29-26=3` in decimal. The symbol we're looking for is therefore the one at the
-index indicating in entry #5 plus the difference we've just computed: `8+3=11`, we find that the
-symbol is `'M`', as expected.
+Using the same example as before (`1110110`) we now stop at entry #6 and therefore the entry we
+care about is #5, meaning that the code is 5-bit long. Let's now subtract that entry's code's top
+5 bits (`11010`) from our current top 5 bits (`11101`); in decimal, that's `29-26=3`. The symbol
+we're looking for is therefore the one at the index indicated in entry #5 plus the difference we've
+just computed: `8+3=11`, we find that the symbol is `'M`', as expected.
 
 In this example, the time saved by scanning a smaller table may not seem like much, but in real-life
 cases the full table will contain several hundreds of entries (the number of symbols) whereas the
@@ -274,8 +274,8 @@ are already sorted so we only need to sort leaves and this is really easy (and f
 even be done in linear time too using [radix sort](https://en.wikipedia.org/wiki/Radix_sort).
 
 Here's how the algorithm works. We start with an array of _2N-1_ slots, the lower _N_ slots are
-filled with leaves, sorted in order of ascending weights. At each iteration we're going to fill one
-of the remaining slots in the array: the nodes.
+filled with leaves, sorted by ascending weights and in lexicographic order for equal weights.
+At each iteration we're going to fill one of the remaining slots in the array: the nodes.
 
 ![Initial state: only leaves](img/fast-huffman-step0.png)
 
@@ -396,8 +396,8 @@ are symbols. This is not much of a problem for our example because that's a very
 of 16 bits. However, for real-world cases with 256 different bytes, that's a different story...
 
 But can this worst-case scenario actually happen? Not really, because that would require a data set
-so large that this is currently impossible. However, degenerate cases that cause the length of codes
-to exceed 32 or 64 bits are possible (unlikely, yet possible).
+so large that this is (currently?) impossible. However, degenerate cases that cause the length of
+codes to exceed 32 or 64 bits are possible (unlikely, yet possible).
 
 The worst case happens when symbol distribution follows the [Fibonacci sequence](https://en.wikipedia.org/wiki/Fibonacci_sequence).
 A 32-bit code length can therefore be reached with a set of 5 702 886 bytes. For a 64-bit code
@@ -499,7 +499,7 @@ $$ cost = \frac{\Delta K}{\Delta L}$$
    the **highest cost**.
 
 !!! Warning
-    _ΔK_ and _ΔL_ always have opposite signs therefore **_ΔK / ΔL_ is always negative**.
+    _ΔK_ and _ΔL_ always have opposite signs, therefore **_ΔK / ΔL_ is always negative**.
 
 ### Implementation Details
 
@@ -642,7 +642,8 @@ length limit changes (in both cases the smart limiting algorithm was used):
 ![samba](img/samba.png)
 
 Performance-wise, there are two criteria we must look at:
- - How long does it take to build the table?
+ - How long does it take to build the table? (depending on data size, table building may or may not
+   be considered negligible)
  - Does the table fit in the [L1 cache](https://en.wikipedia.org/wiki/CPU_cache#Multi-level_caches)?
 
 So, we need to find a good balance between table size and compression ratio. Let's look at which
@@ -778,10 +779,10 @@ Several Decodes Per Refill
 
 When we refill our bit buffer, we can do it more than one byte at a time. We can even read a whole
 machine word at each refill (32 bits on a 32-bit machine and 64 bits on a 64-bit machine), it's
-about as expensive as reading a byte after all. However, this brings two new complications:
+usually as expensive as reading a byte after all. However, this brings two new complications:
  - The processor must support unaligned reads (not all processors do).
  - The order of the data we'll read depends on the processor's endianness (but it's usually cheap
-   to fix endianness)
+   to swap endianness)
 
 When we read 64 bits of data, at least 57 of them are fresh ones (up to 7 bits might be old ones we
 had to re-read because of byte granularity). Therefore, whatever the state of the bit buffer, we
@@ -806,8 +807,8 @@ whereas [Oodle uses 6](https://fgiesen.wordpress.com/2023/10/29/entropy-decoding
 There is, however, a huge difference between the two approaches: Zstandard uses both the multi-stream and
 multi-symbol techniques (which is [complicated](http://fastcompression.blogspot.com/2015/10/huffman-revisited-part-5-combining.html)),
 whereas Oodle uses only the multi-stream one. The combined approach can reach a higher peak throughput
-(which depends on data) whereas the multi-stream-only approach has a sustained performance (and
-usually higher on average).
+(which depends on data) whereas the multi-stream-only approach has a sustained performance (and, if
+done well, can be higher on average).
 
 
 
